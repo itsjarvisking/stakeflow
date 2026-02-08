@@ -1,0 +1,2727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>StakeFlow - Focus with Stakes</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1a1a1a;
+            --accent: #00ff88;
+            --accent-dim: #00ff8833;
+            --accent-secondary: #00d4ff;
+            --accent-purple: #a855f7;
+            --accent-orange: #ff6b35;
+            --danger: #ff4757;
+            --danger-dim: #ff475733;
+            --warning: #ffa502;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-tertiary: #555555;
+            --border: #2a2a2a;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+        }
+
+        .app {
+            max-width: 430px;
+            margin: 0 auto;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .logo-img {
+            width: 42px;
+            height: 42px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: transparent;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .header-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 14px;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .main {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        /* Mode Selection - 4 modes */
+        .mode-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .mode-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-card:hover {
+            border-color: var(--text-tertiary);
+        }
+
+        .mode-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .mode-card.friend.selected {
+            border-color: var(--accent-secondary);
+            background: rgba(0, 212, 255, 0.15);
+        }
+
+        .mode-card.royale.selected {
+            border-color: var(--accent-purple);
+            background: rgba(168, 85, 247, 0.15);
+        }
+
+        .mode-card.group.selected {
+            border-color: var(--accent-orange);
+            background: rgba(255, 107, 53, 0.15);
+        }
+
+        .mode-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .mode-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .mode-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .mode-info {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 24px;
+            border-left: 3px solid var(--accent);
+            transition: all 0.2s;
+        }
+
+        .mode-info.friend { border-left-color: var(--accent-secondary); }
+        .mode-info.royale { border-left-color: var(--accent-purple); }
+        .mode-info.group { border-left-color: var(--accent-orange); }
+
+        .mode-info-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Time & Stake grids */
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .time-option {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .time-option:hover {
+            border-color: var(--text-tertiary);
+        }
+
+        .time-option.selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .time-option .minutes {
+            font-size: 22px;
+            font-weight: 800;
+            display: block;
+        }
+
+        .time-option .label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .custom-time {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .custom-time span { font-size: 16px; }
+
+        .custom-time input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: 600;
+            outline: none;
+        }
+
+        .custom-time input::placeholder { color: var(--text-tertiary); }
+
+        .time-unit-toggle {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .unit-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .unit-btn.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .stake-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .stake-option {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .stake-option:hover { border-color: var(--text-tertiary); }
+        .stake-option.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+        .custom-stake {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .custom-stake span { font-size: 16px; font-weight: 700; color: var(--text-secondary); }
+        .custom-stake input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 700;
+            outline: none;
+        }
+
+        /* Player count for group modes */
+        .player-count-section {
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .player-count-section.show { display: block; }
+
+        .player-grid {
+            display: flex;
+            gap: 8px;
+        }
+
+        .player-option {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .player-option.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+        /* Focus options */
+        .focus-options {
+            background: var(--bg-secondary);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+        }
+
+        .focus-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .focus-option:last-child { border-bottom: none; padding-bottom: 0; }
+        .focus-option:first-child { padding-top: 0; }
+
+        .focus-option-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .focus-option-icon { font-size: 18px; }
+        .focus-option-text { display: flex; flex-direction: column; }
+        .focus-option-title { font-weight: 600; font-size: 13px; }
+        .focus-option-desc { font-size: 11px; color: var(--text-secondary); }
+
+        .toggle {
+            width: 46px;
+            height: 26px;
+            background: var(--bg-tertiary);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle.active { background: var(--accent); }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: all 0.2s;
+        }
+
+        .toggle.active::after { left: 23px; }
+
+        /* Info boxes */
+        .info-box {
+            background: var(--bg-secondary);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+        }
+
+        .info-box-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .info-box-icon { font-size: 18px; }
+        .info-box-title { font-weight: 700; font-size: 14px; }
+        .info-box-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+        .info-box-text strong { color: var(--accent); }
+        .info-box-text.danger strong { color: var(--danger); }
+
+        .winnings-preview {
+            background: linear-gradient(135deg, var(--accent-dim), rgba(0, 212, 255, 0.1));
+            border: 1px solid var(--accent);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .winnings-label { font-size: 13px; color: var(--text-secondary); }
+        .winnings-amount { font-size: 22px; font-weight: 800; color: var(--accent); }
+
+        /* Start button */
+        .start-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 14px;
+            padding: 18px;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--bg-primary);
+            cursor: pointer;
+            margin-top: auto;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .start-btn.friend-mode { background: linear-gradient(135deg, var(--accent-secondary), #0099cc); }
+        .start-btn.royale-mode { background: linear-gradient(135deg, var(--accent-purple), #7c3aed); }
+        .start-btn.group-mode { background: linear-gradient(135deg, var(--accent-orange), #ea580c); }
+        .start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Invite screen */
+        .invite-screen { text-align: center; justify-content: center; gap: 20px; }
+        .invite-icon { font-size: 56px; }
+        .invite-title { font-size: 22px; font-weight: 800; }
+        .invite-subtitle { font-size: 14px; color: var(--text-secondary); line-height: 1.4; }
+
+        .invite-link-box {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .invite-link { flex: 1; font-size: 13px; font-weight: 600; color: var(--accent); word-break: break-all; text-align: left; }
+
+        .copy-btn {
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--bg-primary);
+            cursor: pointer;
+        }
+
+        .share-buttons { display: flex; gap: 10px; justify-content: center; }
+
+        .share-btn {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .waiting-status { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; }
+
+        .waiting-spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .waiting-text { font-size: 13px; color: var(--text-secondary); }
+
+        .players-waiting {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .player-chip {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .player-chip.ready { border-color: var(--accent); background: var(--accent-dim); }
+
+        /* Ready room */
+        .ready-room { text-align: center; justify-content: center; gap: 20px; }
+
+        .players-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .player-row {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-row.ready { border-color: var(--accent); background: var(--accent-dim); }
+        .player-row.failed { border-color: var(--danger); background: var(--danger-dim); opacity: 0.6; }
+
+        .player-avatar { font-size: 24px; }
+        .player-info { flex: 1; text-align: left; }
+        .player-name { font-weight: 700; font-size: 14px; }
+        .player-status-text { font-size: 11px; color: var(--text-secondary); }
+        .player-status-text.ready { color: var(--accent); }
+
+        .ready-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 14px;
+            padding: 18px 36px;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--bg-primary);
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .ready-btn:disabled { opacity: 0.5; }
+        .ready-btn.waiting { background: var(--bg-secondary); border: 2px solid var(--accent); color: var(--accent); }
+
+        /* Timer screen */
+        .timer-screen { text-align: center; justify-content: center; align-items: center; gap: 16px; }
+
+        .timer-status {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .timer-status.warning { color: var(--warning); }
+        .timer-status.danger { color: var(--danger); animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .timer-display {
+            font-size: 80px;
+            font-weight: 900;
+            letter-spacing: -3px;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timer-stake { font-size: 24px; font-weight: 700; color: var(--accent); }
+
+        .active-players {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .active-player-chip {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .active-player-chip .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .active-player-chip.failed { opacity: 0.5; text-decoration: line-through; }
+        .active-player-chip.failed .dot { background: var(--danger); animation: none; }
+
+        .timer-message { font-size: 13px; color: var(--text-secondary); max-width: 280px; line-height: 1.4; }
+        .timer-message strong { color: var(--danger); }
+
+        .cancel-btn {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .cancel-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+        /* Result screen */
+        .result-screen { text-align: center; justify-content: center; align-items: center; gap: 20px; }
+        .result-icon { font-size: 72px; line-height: 1; }
+
+        .result-title { font-size: 32px; font-weight: 900; }
+        .result-title.win { color: var(--accent); }
+        .result-title.lose { color: var(--danger); }
+        .result-title.draw { color: var(--warning); }
+
+        .result-message { font-size: 15px; color: var(--text-secondary); line-height: 1.4; }
+
+        .result-stats { display: flex; gap: 28px; margin: 12px 0; }
+        .result-stat { text-align: center; }
+        .result-stat-value { font-size: 26px; font-weight: 800; }
+        .result-stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; margin-top: 2px; }
+
+        /* Selfie recap */
+        .recap-section { margin-top: 20px; width: 100%; }
+
+        .recap-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-purple), #7c3aed);
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+        }
+
+        .recap-modal { max-height: 90vh; }
+
+        .gallery-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3/4;
+            background: var(--bg-tertiary);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .gallery-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-info {
+            padding: 14px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+
+        .gallery-name { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+        .gallery-roast { font-size: 13px; color: var(--text-secondary); font-style: italic; }
+
+        .gallery-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .gallery-nav-btn {
+            background: var(--bg-tertiary);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .gallery-dots { display: flex; gap: 6px; }
+        .gallery-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); cursor: pointer; }
+        .gallery-dot.active { background: var(--accent); }
+        .gallery-counter { text-align: center; font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
+
+        .vote-section { border-top: 1px solid var(--border); padding-top: 16px; }
+        .vote-title { font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 12px; }
+        .vote-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+        .vote-btn {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .vote-btn:hover { border-color: var(--accent); }
+        .vote-btn.voted { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+        .vote-results { margin-top: 16px; }
+        .vote-results-title { font-size: 14px; font-weight: 600; text-align: center; margin-bottom: 10px; color: var(--text-secondary); }
+        .vote-results-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .vote-result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 10px 14px;
+        }
+
+        .vote-result-name { flex: 1; font-weight: 600; font-size: 13px; }
+        .vote-result-bar { flex: 2; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+        .vote-result-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+        .vote-result-count { font-size: 13px; font-weight: 700; color: var(--accent); min-width: 30px; text-align: right; }
+        .vote-result-item.winner { border: 2px solid var(--accent); }
+
+        .recap-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+
+        .recap-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .recap-item {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 10px;
+            width: calc(50% - 5px);
+            max-width: 160px;
+        }
+
+        .recap-selfie {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .recap-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+        .recap-roast { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
+
+        .streak-bonus {
+            background: linear-gradient(135deg, rgba(255, 165, 2, 0.2), rgba(255, 107, 53, 0.2));
+            border: 1px solid var(--warning);
+            border-radius: 12px;
+            padding: 10px 16px;
+            margin-bottom: 16px;
+        }
+
+        .streak-bonus-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--warning);
+        }
+
+        .share-card-section {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .share-card-preview {
+            width: 100%;
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+
+        .share-card-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .share-card-btn {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .share-card-btn.primary {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            color: var(--bg-primary);
+        }
+
+        .again-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 14px;
+            padding: 16px 40px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--bg-primary);
+            cursor: pointer;
+        }
+
+        /* Check-in modal */
+        .checkin-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            flex-direction: column;
+            gap: 20px;
+            padding: 24px;
+        }
+
+        .checkin-overlay.active { display: flex; }
+        .checkin-alert { font-size: 56px; animation: shake 0.5s ease-in-out infinite; }
+
+        @keyframes shake { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+
+        .checkin-title { font-size: 24px; font-weight: 900; text-align: center; color: var(--warning); }
+        .checkin-timer { font-size: 64px; font-weight: 900; color: var(--danger); font-variant-numeric: tabular-nums; }
+        .checkin-message { font-size: 14px; color: var(--text-secondary); text-align: center; }
+
+        .checkin-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 18px;
+            padding: 20px 56px;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--bg-primary);
+            cursor: pointer;
+            text-transform: uppercase;
+            animation: pulse-btn 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse-btn { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+        /* Selfie check-in */
+        .selfie-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.98);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 24px;
+            gap: 16px;
+        }
+
+        .selfie-overlay.active { display: flex; }
+        .selfie-title { font-size: 20px; font-weight: 800; color: var(--warning); }
+        .selfie-timer { font-size: 40px; font-weight: 900; color: var(--danger); }
+
+        .bereal-container {
+            position: relative;
+            width: 280px;
+            height: 380px;
+        }
+
+        .bereal-back {
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 3px solid var(--border);
+        }
+
+        .bereal-back video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .bereal-front {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            width: 90px;
+            height: 120px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 3px solid var(--bg-primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .bereal-front video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .selfie-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            font-size: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Leaderboard modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 430px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-bottom));
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title { font-size: 20px; font-weight: 800; }
+
+        .modal-close {
+            background: var(--bg-tertiary);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 18px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .leaderboard-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .lb-tab {
+            background: var(--bg-tertiary);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .lb-tab.active { background: var(--accent); color: var(--bg-primary); }
+
+        .leaderboard-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .lb-item {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .lb-rank {
+            font-size: 16px;
+            font-weight: 800;
+            width: 28px;
+            text-align: center;
+        }
+
+        .lb-rank.gold { color: #ffd700; }
+        .lb-rank.silver { color: #c0c0c0; }
+        .lb-rank.bronze { color: #cd7f32; }
+
+        .lb-info { flex: 1; }
+        .lb-name { font-weight: 600; font-size: 14px; }
+        .lb-stat { font-size: 11px; color: var(--text-secondary); }
+        .lb-value { font-weight: 800; font-size: 16px; color: var(--accent); }
+
+        /* Confetti */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 300;
+            overflow: hidden;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            animation: confetti-fall 3s ease-out forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Stats in header dropdown */
+        .stats-quick {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .stat-mini { text-align: center; }
+        .stat-mini-value { font-size: 18px; font-weight: 800; }
+        .stat-mini-value.positive { color: var(--accent); }
+        .stat-mini-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
+
+        /* Royale specific - infinity timer */
+        .timer-display.infinity { font-size: 60px; }
+
+        /* Hide time section for royale */
+        .time-section.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="logo" onclick="goHome()">
+                <img src="/logo.png" alt="StakeFlow" class="logo-img">
+                <span>StakeFlow</span>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" onclick="openLeaderboard()">🏆</button>
+                <button class="header-btn" onclick="openStats()">📊</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- Setup Screen -->
+            <div class="screen setup-screen active" id="setupScreen">
+                <div class="section-title">Challenge Mode</div>
+                <div class="mode-grid">
+                    <div class="mode-card selected" data-mode="solo" onclick="selectMode('solo')">
+                        <div class="mode-icon">🔒</div>
+                        <div class="mode-title">Solo</div>
+                        <div class="mode-desc">Challenge yourself</div>
+                    </div>
+                    <div class="mode-card friend" data-mode="friend" onclick="selectMode('friend')">
+                        <div class="mode-icon">⚔️</div>
+                        <div class="mode-title">1v1</div>
+                        <div class="mode-desc">Challenge a friend</div>
+                    </div>
+                    <div class="mode-card royale" data-mode="royale" onclick="selectMode('royale')">
+                        <div class="mode-icon">👑</div>
+                        <div class="mode-title">Royale</div>
+                        <div class="mode-desc">Last one standing</div>
+                    </div>
+                    <div class="mode-card group" data-mode="group" onclick="selectMode('group')">
+                        <div class="mode-icon">👥</div>
+                        <div class="mode-title">Group</div>
+                        <div class="mode-desc">Survivors split pot</div>
+                    </div>
+                </div>
+
+                <div class="mode-info" id="modeInfo">
+                    <div class="mode-info-text" id="modeInfoText">
+                        🎯 Challenge yourself to stay focused. If you break the rules, your stake goes to charity.
+                    </div>
+                </div>
+
+                <div class="time-section" id="timeSection">
+                    <div class="section-title">Focus Duration</div>
+                    <div class="time-grid">
+                        <div class="time-option" data-time="15" onclick="selectTime(this)">
+                            <span class="minutes">15</span>
+                            <span class="label">min</span>
+                        </div>
+                        <div class="time-option selected" data-time="25" onclick="selectTime(this)">
+                            <span class="minutes">25</span>
+                            <span class="label">min</span>
+                        </div>
+                        <div class="time-option" data-time="45" onclick="selectTime(this)">
+                            <span class="minutes">45</span>
+                            <span class="label">min</span>
+                        </div>
+                        <div class="time-option" data-time="60" onclick="selectTime(this)">
+                            <span class="minutes">60</span>
+                            <span class="label">min</span>
+                        </div>
+                    </div>
+                    <div class="custom-time">
+                        <span>⏱️</span>
+                        <input type="number" id="customTime" placeholder="Custom duration" min="1" oninput="customTimeInput()">
+                        <div class="time-unit-toggle">
+                            <button class="unit-btn active" id="unitMin" onclick="setTimeUnit('min')">min</button>
+                            <button class="unit-btn" id="unitHr" onclick="setTimeUnit('hr')">hr</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="player-count-section" id="playerCountSection">
+                    <div class="section-title">Max Players</div>
+                    <div class="player-grid">
+                        <div class="player-option" data-players="2" onclick="selectPlayers(this)">2</div>
+                        <div class="player-option selected" data-players="3" onclick="selectPlayers(this)">3</div>
+                        <div class="player-option" data-players="4" onclick="selectPlayers(this)">4</div>
+                        <div class="player-option" data-players="5" onclick="selectPlayers(this)">5</div>
+                    </div>
+                </div>
+
+                <div class="section-title">Your Stake</div>
+                <div class="stake-grid">
+                    <div class="stake-option" data-stake="5" onclick="selectStake(this)">$5</div>
+                    <div class="stake-option selected" data-stake="10" onclick="selectStake(this)">$10</div>
+                    <div class="stake-option" data-stake="25" onclick="selectStake(this)">$25</div>
+                    <div class="stake-option" data-stake="50" onclick="selectStake(this)">$50</div>
+                </div>
+                <div class="custom-stake">
+                    <span>$</span>
+                    <input type="number" id="customStake" placeholder="Custom amount" oninput="customStakeInput()">
+                </div>
+
+                <div class="section-title">Focus Rules</div>
+                <div class="focus-options">
+                    <div class="focus-option">
+                        <div class="focus-option-left">
+                            <span class="focus-option-icon">📱</span>
+                            <div class="focus-option-text">
+                                <span class="focus-option-title">Leave App = Lose</span>
+                                <span class="focus-option-desc">Switch tabs or apps and you're out</span>
+                            </div>
+                        </div>
+                        <div class="toggle active" id="toggleLeaveApp" onclick="toggleOption('leaveApp')"></div>
+                    </div>
+                    <div class="focus-option">
+                        <div class="focus-option-left">
+                            <span class="focus-option-icon">⚡</span>
+                            <div class="focus-option-text">
+                                <span class="focus-option-title">Random Check-ins</span>
+                                <span class="focus-option-desc">Tap within 25s when prompted</span>
+                            </div>
+                        </div>
+                        <div class="toggle active" id="toggleCheckins" onclick="toggleOption('checkins')"></div>
+                    </div>
+                    <div class="focus-option">
+                        <div class="focus-option-left">
+                            <span class="focus-option-icon">📸</span>
+                            <div class="focus-option-text">
+                                <span class="focus-option-title">Selfie Check-ins</span>
+                                <span class="focus-option-desc">Prove you're there with a photo</span>
+                            </div>
+                        </div>
+                        <div class="toggle" id="toggleSelfie" onclick="toggleOption('selfie')"></div>
+                    </div>
+                </div>
+
+                <div class="winnings-preview" id="winningsPreview" style="display: none;">
+                    <span class="winnings-label">🏆 Potential Winnings</span>
+                    <span class="winnings-amount" id="potentialWinnings">$18</span>
+                </div>
+
+                <button class="start-btn" id="startBtn" onclick="createChallenge()">
+                    🔥 Lock In - Start Session
+                </button>
+            </div>
+
+            <!-- Invite Screen -->
+            <div class="screen invite-screen" id="inviteScreen">
+                <div class="invite-icon">📲</div>
+                <div class="invite-title">Challenge Created!</div>
+                <div class="invite-subtitle" id="inviteSubtitle">
+                    Share this link with your friend.<br>
+                    They'll need to pay their stake to join.
+                </div>
+                
+                <div class="invite-link-box">
+                    <span class="invite-link" id="inviteLink">loading...</span>
+                    <button class="copy-btn" onclick="copyLink()">Copy</button>
+                </div>
+
+                <div class="share-buttons">
+                    <button class="share-btn" onclick="shareToMessages()">💬 iMessage</button>
+                    <button class="share-btn" onclick="shareNative()">📤 Share</button>
+                </div>
+
+                <div class="waiting-status">
+                    <div class="waiting-spinner"></div>
+                    <span class="waiting-text" id="waitingText">Waiting for players to join...</span>
+                </div>
+
+                <div class="players-waiting" id="playersWaiting"></div>
+            </div>
+
+            <!-- Join Screen -->
+            <div class="screen" id="joinScreen" style="text-align: center; justify-content: center; gap: 20px;">
+                <div style="background: var(--bg-secondary); border-radius: 18px; padding: 24px;">
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;" id="challengerName">Someone</div>
+                    <div style="font-size: 18px; font-weight: 800; margin-bottom: 16px;">challenged you! <span id="joinModeIcon">⚔️</span></div>
+                    
+                    <div style="display: flex; justify-content: center; gap: 28px; margin-bottom: 16px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 26px; font-weight: 800;" id="joinDuration">25</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Minutes</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 26px; font-weight: 800;" id="joinStake">$10</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Stake</div>
+                        </div>
+                        <div style="text-align: center;" id="joinPlayersDiv">
+                            <div style="font-size: 26px; font-weight: 800;" id="joinPlayers">3</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Players</div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--accent-dim); border-radius: 10px; padding: 12px; margin-bottom: 6px;">
+                        <div style="font-size: 11px; color: var(--text-secondary);">Win and take home</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--accent);" id="joinWinnings">$27</div>
+                    </div>
+                </div>
+
+                <button class="accept-btn" style="background: linear-gradient(135deg, var(--accent), #00cc6a); border: none; border-radius: 14px; padding: 16px; font-size: 15px; font-weight: 800; color: var(--bg-primary); cursor: pointer; text-transform: uppercase;" onclick="acceptChallenge()">
+                    💰 Pay $<span id="joinStakeBtn">10</span> & Join
+                </button>
+            </div>
+
+            <!-- Ready Room -->
+            <div class="screen ready-room" id="readyRoom">
+                <div class="section-title" style="text-align: center;">Ready Room</div>
+                
+                <div class="players-list" id="playersList"></div>
+
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="font-size: 13px; color: var(--text-secondary);">Challenge</div>
+                    <div style="font-size: 20px; font-weight: 800;"><span id="readyDuration">25</span> min • $<span id="readyStake">10</span> each</div>
+                </div>
+
+                <button class="ready-btn" id="readyBtn" onclick="markReady()">✅ I'm Ready</button>
+            </div>
+
+            <!-- Timer Screen -->
+            <div class="screen timer-screen" id="timerScreen">
+                <div class="timer-status" id="timerStatus">STAY FOCUSED</div>
+                <div class="timer-display" id="timerDisplay">25:00</div>
+                <div class="timer-stake" id="timerStake">$10 at stake</div>
+                
+                <div class="active-players" id="activePlayers"></div>
+
+                <div class="timer-message">
+                    <strong>Don't break the rules.</strong><br>
+                    Stay focused or lose your stake.
+                </div>
+                <button class="cancel-btn" onclick="cancelSession()">Give Up (Lose Stake)</button>
+            </div>
+
+            <!-- Result Screen -->
+            <div class="screen result-screen" id="resultScreen">
+                <div class="result-icon" id="resultIcon">🏆</div>
+                <div class="result-title" id="resultTitle">YOU WON!</div>
+                <div class="result-message" id="resultMessage">Amazing focus!</div>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <div class="result-stat-value" id="resultTime">25:00</div>
+                        <div class="result-stat-label">Time</div>
+                    </div>
+                    <div class="result-stat">
+                        <div class="result-stat-value" id="resultMoney">$10</div>
+                        <div class="result-stat-label" id="resultMoneyLabel">Won</div>
+                    </div>
+                </div>
+                
+                <div class="streak-bonus" id="streakBonus" style="display: none;">
+                    <span class="streak-bonus-text">🔥 <span id="streakBonusAmount">+5%</span> streak bonus applied!</span>
+                </div>
+
+                <div class="share-card-section" id="shareCardSection" style="display: none;">
+                    <canvas id="shareCanvas" width="600" height="400" style="display: none;"></canvas>
+                    <img id="shareCardPreview" class="share-card-preview" alt="Share card">
+                    <div class="share-card-buttons">
+                        <button class="share-card-btn" onclick="downloadShareCard()">📥 Save</button>
+                        <button class="share-card-btn primary" onclick="shareCard()">📤 Share</button>
+                    </div>
+                </div>
+
+                <div class="recap-section" id="recapSection" style="display: none;">
+                    <button class="recap-btn" onclick="openRecapGallery()">📸 View Focus Recap</button>
+                </div>
+
+                <button class="again-btn" onclick="goHome()">Start Another Session</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Check-in Modal -->
+    <div class="checkin-overlay" id="checkinOverlay">
+        <div class="checkin-alert">🚨</div>
+        <div class="checkin-title">FOCUS CHECK!</div>
+        <div class="checkin-timer" id="checkinTimer">25</div>
+        <div class="checkin-message">Tap the button to prove you're focused!</div>
+        <button class="checkin-btn" onclick="confirmCheckin()">I'M HERE! ✅</button>
+    </div>
+
+    <!-- Selfie Check-in Modal (BeReal Style) -->
+    <div class="selfie-overlay" id="selfieOverlay">
+        <div class="selfie-title">📸 BEREAL CHECK!</div>
+        <div class="selfie-timer" id="selfieTimer">30</div>
+        <div class="bereal-container">
+            <div class="bereal-back">
+                <video id="backVideo" autoplay playsinline muted></video>
+            </div>
+            <div class="bereal-front">
+                <video id="frontVideo" autoplay playsinline muted></video>
+            </div>
+        </div>
+        <button class="selfie-btn" onclick="captureSelfie()">📷</button>
+        <div class="checkin-message">Show what you're working on!</div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div class="modal-overlay" id="leaderboardModal" onclick="closeLeaderboard(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">🏆 Leaderboard</span>
+                <button class="modal-close" onclick="closeLeaderboard()">&times;</button>
+            </div>
+            <div class="leaderboard-tabs">
+                <button class="lb-tab active" onclick="showLeaderboard('wins')">Wins</button>
+                <button class="lb-tab" onclick="showLeaderboard('earnings')">Earnings</button>
+                <button class="lb-tab" onclick="showLeaderboard('streaks')">Streaks</button>
+                <button class="lb-tab" onclick="showLeaderboard('focus')">Focus Time</button>
+            </div>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div class="modal-overlay" id="statsModal" onclick="closeStats(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">📊 Your Stats</span>
+                <button class="modal-close" onclick="closeStats()">&times;</button>
+            </div>
+            <div class="stats-quick">
+                <div class="stat-mini">
+                    <div class="stat-mini-value" id="statWins">0</div>
+                    <div class="stat-mini-label">Wins</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value" id="statStreak">0</div>
+                    <div class="stat-mini-label">Streak</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value positive" id="statEarnings">$0</div>
+                    <div class="stat-mini-label">Earned</div>
+                </div>
+            </div>
+            <div class="stats-quick">
+                <div class="stat-mini">
+                    <div class="stat-mini-value" id="statSessions">0</div>
+                    <div class="stat-mini-label">Sessions</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value" id="statFocus">0h</div>
+                    <div class="stat-mini-label">Focus Time</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value" id="statBestStreak">0</div>
+                    <div class="stat-mini-label">Best Streak</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recap Gallery Modal -->
+    <div class="modal-overlay" id="recapModal" onclick="closeRecapGallery(event)">
+        <div class="modal recap-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">📸 Focus Recap</span>
+                <button class="modal-close" onclick="closeRecapGallery()">&times;</button>
+            </div>
+            
+            <div class="gallery-container" id="galleryContainer">
+                <div class="gallery-slide active" id="gallerySlide">
+                    <img class="gallery-image" id="galleryImage" src="" alt="BeReal">
+                    <div class="gallery-info">
+                        <div class="gallery-name" id="galleryName">Player</div>
+                        <div class="gallery-roast" id="galleryRoast">Loading roast...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="gallery-nav">
+                <button class="gallery-nav-btn" onclick="prevPhoto()">←</button>
+                <div class="gallery-dots" id="galleryDots"></div>
+                <button class="gallery-nav-btn" onclick="nextPhoto()">→</button>
+            </div>
+            
+            <div class="gallery-counter" id="galleryCounter">1 / 3</div>
+            
+            <div class="vote-section" id="voteSection">
+                <div class="vote-title">🏆 Vote for Best Setup</div>
+                <div class="vote-buttons" id="voteButtons"></div>
+                <div class="vote-results" id="voteResults" style="display: none;">
+                    <div class="vote-results-title">Results</div>
+                    <div class="vote-results-list" id="voteResultsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const CHECKIN_SECONDS = 25;
+        const SELFIE_SECONDS = 30;
+        
+        let socket = null;
+        let currentMode = 'solo';
+        let selectedTime = 25;
+        let selectedStake = 10;
+        let selectedPlayers = 3;
+        let timeUnit = 'min';
+        let currentChallenge = null;
+        let challengePlayers = [];
+        let timerInterval = null;
+        let remainingSeconds = 0;
+        let sessionActive = false;
+        let sessionStartTime = null;
+        let userId = localStorage.getItem('stakeflow_user_id') || generateUserId();
+        let userName = localStorage.getItem('stakeflow_user_name') || prompt('Enter your name:') || 'Anonymous';
+        localStorage.setItem('stakeflow_user_name', userName);
+
+        let focusOptions = { leaveApp: true, checkins: true, selfie: false };
+        let checkinInterval = null;
+        let checkinTimeout = null;
+        let checkinCountdown = null;
+        let checkinActive = false;
+        let frontStream = null;
+        let backStream = null;
+        let leaderboardData = null;
+
+        function generateUserId() {
+            const id = 'user_' + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('stakeflow_user_id', id);
+            return id;
+        }
+
+        function init() {
+            const path = window.location.pathname;
+            const match = path.match(/\/challenge\/([A-Z0-9]+)/i);
+            if (match) loadChallenge(match[1]);
+            connectSocket();
+            updateUI();
+        }
+
+        function connectSocket() {
+            socket = io(API_BASE);
+            socket.on('challenge:updated', handleChallengeUpdate);
+            socket.on('challenge:completed', handleChallengeComplete);
+            socket.on('challenge:player_failed', handlePlayerFailed);
+        }
+
+        function selectMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+            document.querySelector(`.mode-card[data-mode="${mode}"]`).classList.add('selected');
+            
+            const timeSection = document.getElementById('timeSection');
+            const playerSection = document.getElementById('playerCountSection');
+            const startBtn = document.getElementById('startBtn');
+            const modeInfo = document.getElementById('modeInfo');
+            const modeInfoText = document.getElementById('modeInfoText');
+            
+            timeSection.classList.toggle('hidden', mode === 'royale');
+            playerSection.classList.toggle('show', mode === 'royale' || mode === 'group');
+            
+            const btnTexts = {
+                solo: '🔥 Lock In - Start Session',
+                friend: '⚔️ Create 1v1 Challenge',
+                royale: '👑 Create Royale',
+                group: '👥 Create Group Challenge'
+            };
+            startBtn.textContent = btnTexts[mode];
+            startBtn.className = 'start-btn' + (mode !== 'solo' ? ` ${mode}-mode` : '');
+            
+            // Update mode description
+            const modeDescriptions = {
+                solo: '🔒 Lock in and challenge yourself to stay focused. If you break the rules, your stake goes to charity.',
+                friend: '⚔️ Head-to-head battle! First person to lose focus loses their stake to the winner.',
+                royale: '👑 Battle royale! No time limit — last person still focused wins the ENTIRE pot. Ultimate test of endurance.',
+                group: '👥 Group challenge with a time limit. Anyone who fails loses their stake, survivors split the losers\' pot!'
+            };
+            modeInfoText.textContent = modeDescriptions[mode];
+            modeInfo.className = 'mode-info ' + mode;
+            
+            updateUI();
+        }
+
+        function selectTime(el) {
+            document.querySelectorAll('.time-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedTime = parseInt(el.dataset.time);
+            document.getElementById('customTime').value = '';
+        }
+
+        function customTimeInput() {
+            const val = document.getElementById('customTime').value;
+            if (val) {
+                document.querySelectorAll('.time-option').forEach(opt => opt.classList.remove('selected'));
+                let minutes = parseInt(val) || 25;
+                if (timeUnit === 'hr') minutes *= 60;
+                selectedTime = Math.max(1, minutes);
+            }
+        }
+
+        function setTimeUnit(unit) {
+            timeUnit = unit;
+            document.getElementById('unitMin').classList.toggle('active', unit === 'min');
+            document.getElementById('unitHr').classList.toggle('active', unit === 'hr');
+            customTimeInput();
+        }
+
+        function selectStake(el) {
+            document.querySelectorAll('.stake-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedStake = parseInt(el.dataset.stake);
+            document.getElementById('customStake').value = '';
+            updateUI();
+        }
+
+        function customStakeInput() {
+            const val = document.getElementById('customStake').value;
+            if (val) {
+                document.querySelectorAll('.stake-option').forEach(opt => opt.classList.remove('selected'));
+                selectedStake = parseInt(val) || 10;
+                updateUI();
+            }
+        }
+
+        function selectPlayers(el) {
+            document.querySelectorAll('.player-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedPlayers = parseInt(el.dataset.players);
+            updateUI();
+        }
+
+        function toggleOption(option) {
+            focusOptions[option] = !focusOptions[option];
+            const el = document.getElementById(`toggle${option.charAt(0).toUpperCase() + option.slice(1)}`);
+            el.classList.toggle('active', focusOptions[option]);
+            if (!focusOptions.leaveApp && !focusOptions.checkins && !focusOptions.selfie) {
+                focusOptions.leaveApp = true;
+                document.getElementById('toggleLeaveApp').classList.add('active');
+            }
+        }
+
+        function updateUI() {
+            const showWinnings = currentMode !== 'solo';
+            document.getElementById('winningsPreview').style.display = showWinnings ? 'flex' : 'none';
+            
+            const players = currentMode === 'friend' ? 2 : selectedPlayers;
+            const totalPot = selectedStake * players;
+            const fee = selectedStake >= 100 ? 0.15 : 0.10; // 15% for $100+, 10% otherwise
+            const winnings = Math.floor(totalPot * (1 - fee));
+            document.getElementById('potentialWinnings').textContent = `$${winnings}`;
+        }
+
+        async function createChallenge() {
+            if (currentMode === 'solo') {
+                startSoloSession();
+                return;
+            }
+
+            try {
+                const maxPlayers = currentMode === 'friend' ? 2 : selectedPlayers;
+                const response = await fetch(`${API_BASE}/api/challenges`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: currentMode,
+                        stake: selectedStake,
+                        duration: currentMode === 'royale' ? null : selectedTime,
+                        creatorId: userId,
+                        creatorName: userName,
+                        maxPlayers
+                    })
+                });
+
+                const data = await response.json();
+                currentChallenge = { ...data, type: currentMode, stake_amount: selectedStake * 100, duration_minutes: selectedTime, max_players: maxPlayers };
+                socket.emit('join:challenge', data.challengeId);
+
+                const shareUrl = `${window.location.origin}/challenge/${data.challengeId}`;
+                document.getElementById('inviteLink').textContent = shareUrl;
+                
+                const subtitles = {
+                    friend: 'Share this link with your friend.',
+                    royale: `Share with up to ${maxPlayers - 1} friends. Last one standing wins!`,
+                    group: `Share with up to ${maxPlayers - 1} friends. Survivors split the losers' pot!`
+                };
+                document.getElementById('inviteSubtitle').innerHTML = subtitles[currentMode] + '<br>They\'ll need to pay their stake to join.';
+                
+                updatePlayersWaiting([{ user_id: userId, user_name: userName, paid: true }]);
+                showScreen('inviteScreen');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error creating challenge');
+            }
+        }
+
+        async function loadChallenge(challengeId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/challenges/${challengeId}`);
+                const challenge = await response.json();
+                if (challenge.error) {
+                    alert('Challenge not found!');
+                    goHome();
+                    return;
+                }
+
+                currentChallenge = challenge;
+                challengePlayers = challenge.players || [];
+                socket.emit('join:challenge', challengeId);
+
+                const isCreator = challenge.creator_id === userId;
+                const myPlayer = challengePlayers.find(p => p.user_id === userId);
+
+                if (challenge.status === 'active') {
+                    startTimerFromChallenge(challenge);
+                } else if (myPlayer?.paid) {
+                    showReadyRoom(challenge);
+                } else if (isCreator) {
+                    const shareUrl = `${window.location.origin}/challenge/${challengeId}`;
+                    document.getElementById('inviteLink').textContent = shareUrl;
+                    updatePlayersWaiting(challengePlayers);
+                    showScreen('inviteScreen');
+                } else {
+                    showJoinScreen(challenge);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                goHome();
+            }
+        }
+
+        function showJoinScreen(challenge) {
+            document.getElementById('challengerName').textContent = challenge.creator_name + ' (@' + challenge.type + ')';
+            document.getElementById('joinModeIcon').textContent = { friend: '⚔️', royale: '👑', group: '👥' }[challenge.type] || '⚔️';
+            document.getElementById('joinDuration').textContent = challenge.duration_minutes || '∞';
+            document.getElementById('joinStake').textContent = `$${challenge.stake_dollars}`;
+            document.getElementById('joinStakeBtn').textContent = challenge.stake_dollars;
+            document.getElementById('joinPlayers').textContent = challenge.max_players;
+            document.getElementById('joinPlayersDiv').style.display = challenge.max_players > 2 ? 'block' : 'none';
+            
+            const winnings = Math.floor(challenge.stake_dollars * challenge.max_players * (1 - PLATFORM_FEE));
+            document.getElementById('joinWinnings').textContent = `$${winnings}`;
+            
+            showScreen('joinScreen');
+        }
+
+        async function acceptChallenge() {
+            try {
+                await fetch(`${API_BASE}/api/challenges/${currentChallenge.id}/join`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, userName })
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error joining challenge');
+            }
+        }
+
+        function handleChallengeUpdate(data) {
+            currentChallenge = { ...currentChallenge, ...data };
+            challengePlayers = data.players || [];
+
+            if (data.status === 'active') {
+                startTimerFromChallenge(currentChallenge);
+            } else {
+                const myPlayer = challengePlayers.find(p => p.user_id === userId);
+                const paidPlayers = challengePlayers.filter(p => p.paid);
+                
+                if (myPlayer?.paid && paidPlayers.length >= 2) {
+                    showReadyRoom(currentChallenge);
+                } else {
+                    updatePlayersWaiting(challengePlayers);
+                }
+            }
+        }
+
+        function handlePlayerFailed(data) {
+            challengePlayers = data.players || [];
+            updateActivePlayers();
+        }
+
+        function updatePlayersWaiting(players) {
+            const container = document.getElementById('playersWaiting');
+            container.innerHTML = players.filter(p => p.paid).map(p => `
+                <div class="player-chip ${p.ready ? 'ready' : ''}">
+                    ${p.user_id === userId ? '👤' : '🧑'} ${p.user_name} ${p.ready ? '✅' : ''}
+                </div>
+            `).join('');
+            
+            document.getElementById('waitingText').textContent = 
+                `${players.filter(p => p.paid).length}/${currentChallenge?.max_players || 2} players joined`;
+        }
+
+        function showReadyRoom(challenge) {
+            const players = challengePlayers.filter(p => p.paid);
+            document.getElementById('playersList').innerHTML = players.map(p => `
+                <div class="player-row ${p.ready ? 'ready' : ''}" id="player-${p.user_id}">
+                    <div class="player-avatar">${p.user_id === userId ? '👤' : '🧑'}</div>
+                    <div class="player-info">
+                        <div class="player-name">${p.user_name}${p.user_id === userId ? ' (You)' : ''}</div>
+                        <div class="player-status-text ${p.ready ? 'ready' : ''}">${p.ready ? '✅ Ready!' : 'Waiting...'}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('readyDuration').textContent = challenge.duration_minutes || '∞';
+            document.getElementById('readyStake').textContent = challenge.stake_amount / 100;
+
+            const myPlayer = players.find(p => p.user_id === userId);
+            const readyBtn = document.getElementById('readyBtn');
+            if (myPlayer?.ready) {
+                readyBtn.textContent = 'Waiting for others...';
+                readyBtn.classList.add('waiting');
+                readyBtn.disabled = true;
+            } else {
+                readyBtn.textContent = '✅ I\'m Ready';
+                readyBtn.classList.remove('waiting');
+                readyBtn.disabled = false;
+            }
+
+            showScreen('readyRoom');
+        }
+
+        async function markReady() {
+            try {
+                await fetch(`${API_BASE}/api/challenges/${currentChallenge.id}/ready`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId })
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function startSoloSession() {
+            sessionActive = true;
+            sessionStartTime = Date.now();
+            remainingSeconds = selectedTime * 60;
+            currentChallenge = { type: 'solo', stake_amount: selectedStake * 100, duration_minutes: selectedTime };
+            challengePlayers = [{ user_id: userId, user_name: userName }];
+
+            showScreen('timerScreen');
+            document.getElementById('timerStake').textContent = `$${selectedStake} at stake`;
+            document.getElementById('activePlayers').innerHTML = '';
+            updateTimerDisplay();
+            startTimer();
+        }
+
+        function startTimerFromChallenge(challenge) {
+            currentChallenge = challenge;
+            selectedTime = challenge.duration_minutes;
+            selectedStake = challenge.stake_amount / 100;
+
+            sessionActive = true;
+            sessionStartTime = Date.now();
+            remainingSeconds = challenge.duration_minutes ? challenge.duration_minutes * 60 : Infinity;
+
+            showScreen('timerScreen');
+            document.getElementById('timerStake').textContent = `$${selectedStake} at stake`;
+            
+            if (challenge.type === 'royale') {
+                document.getElementById('timerDisplay').classList.add('infinity');
+            }
+            
+            updateActivePlayers();
+            updateTimerDisplay();
+            startTimer();
+        }
+
+        function updateActivePlayers() {
+            const players = challengePlayers.filter(p => p.paid);
+            if (players.length <= 1) return;
+            
+            document.getElementById('activePlayers').innerHTML = players.map(p => `
+                <div class="active-player-chip ${p.failed ? 'failed' : ''}">
+                    <div class="dot"></div>
+                    ${p.user_name}${p.user_id === userId ? ' (You)' : ''}
+                </div>
+            `).join('');
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(timerTick, 1000);
+            if (focusOptions.leaveApp) {
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+            }
+            startCheckins();
+        }
+
+        function timerTick() {
+            if (remainingSeconds !== Infinity) {
+                remainingSeconds--;
+                updateTimerDisplay();
+                if (remainingSeconds <= 0) endSession(true);
+            } else {
+                updateTimerDisplay();
+            }
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            if (remainingSeconds === Infinity) {
+                const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                display.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                const mins = Math.floor(remainingSeconds / 60);
+                const secs = remainingSeconds % 60;
+                display.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            const status = document.getElementById('timerStatus');
+            if (remainingSeconds !== Infinity && remainingSeconds < 60) {
+                status.textContent = 'ALMOST THERE!';
+                status.className = 'timer-status warning';
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (document.hidden && sessionActive) endSession(false, 'You switched away!');
+        }
+
+        function cancelSession() {
+            if (confirm('Are you sure? You will lose your stake!')) endSession(false, 'You gave up!');
+        }
+
+        // Check-ins
+        let checkinCount = 0;
+        let targetCheckins = 3;
+        let checkinSchedule = [];
+
+        function getCheckinConfig(sessionMinutes) {
+            // Returns { totalCheckins, intervalMin, intervalMax, firstCheckinMin, firstCheckinMax }
+            if (sessionMinutes <= 15) {
+                return { total: 2, interval: [6, 7], first: [4, 5] };
+            } else if (sessionMinutes <= 20) {
+                return { total: 2 + (Math.random() > 0.5 ? 1 : 0), interval: [7, 8], first: [5, 6] };
+            } else if (sessionMinutes <= 25) {
+                return { total: 3, interval: [7, 8], first: [5, 6] };
+            } else if (sessionMinutes <= 30) {
+                return { total: 3 + (Math.random() > 0.5 ? 1 : 0), interval: [8, 10], first: [6, 7] };
+            } else if (sessionMinutes <= 45) {
+                return { total: 4 + (Math.random() > 0.5 ? 1 : 0), interval: [10, 12], first: [7, 8] };
+            } else if (sessionMinutes <= 60) {
+                return { total: 5 + (Math.random() > 0.5 ? 1 : 0), interval: [10, 12], first: [8, 10] };
+            } else if (sessionMinutes <= 90) {
+                return { total: 6 + (Math.random() > 0.5 ? 1 : 0), interval: [12, 15], first: [10, 12] };
+            } else if (sessionMinutes <= 120) {
+                return { total: 7 + (Math.random() > 0.5 ? 1 : 0), interval: [15, 18], first: [12, 14] };
+            } else {
+                return { total: 8 + Math.floor(Math.random() * 3), interval: [18, 22], first: [15, 18] };
+            }
+        }
+
+        function randomInRange(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        function startCheckins() {
+            if (!focusOptions.checkins && !focusOptions.selfie) return;
+            
+            checkinCount = 0;
+            checkinSchedule = [];
+            
+            const sessionMinutes = selectedTime || 25;
+            const config = getCheckinConfig(sessionMinutes);
+            targetCheckins = config.total;
+            
+            // Build the schedule
+            let currentTime = randomInRange(config.first[0], config.first[1]) * 60; // First check-in time in seconds
+            
+            for (let i = 0; i < targetCheckins; i++) {
+                // Add ±20% randomness to interval
+                const variance = 0.2;
+                const intervalBase = randomInRange(config.interval[0], config.interval[1]) * 60;
+                const interval = intervalBase * (1 + (Math.random() - 0.5) * variance * 2);
+                
+                checkinSchedule.push({
+                    time: Math.round(currentTime),
+                    isSelfie: focusOptions.selfie && (!focusOptions.checkins || Math.random() > 0.5)
+                });
+                
+                currentTime += interval;
+            }
+            
+            // Filter out any check-ins that would happen after session ends
+            const sessionSeconds = sessionMinutes * 60;
+            checkinSchedule = checkinSchedule.filter(c => c.time < sessionSeconds - 30); // Leave 30s buffer at end
+            targetCheckins = checkinSchedule.length;
+            
+            console.log(`Session: ${sessionMinutes}min | Check-ins: ${targetCheckins}`);
+            console.log('Schedule:', checkinSchedule.map(c => `${Math.round(c.time/60)}min (${c.isSelfie ? 'selfie' : 'tap'})`).join(', '));
+            
+            scheduleNextCheckin();
+        }
+
+        function scheduleNextCheckin() {
+            if (checkinCount >= checkinSchedule.length) return;
+            
+            const nextCheckin = checkinSchedule[checkinCount];
+            const elapsedSeconds = (Date.now() - sessionStartTime) / 1000;
+            const delaySeconds = Math.max(5, nextCheckin.time - elapsedSeconds); // At least 5 second delay
+            
+            console.log(`Check-in ${checkinCount + 1}/${targetCheckins} in ${Math.round(delaySeconds)}s (${nextCheckin.isSelfie ? 'selfie' : 'tap'})`);
+            
+            checkinInterval = setTimeout(() => {
+                if (sessionActive && !checkinActive) {
+                    checkinCount++;
+                    if (nextCheckin.isSelfie) {
+                        triggerSelfieCheckin();
+                    } else {
+                        triggerCheckin();
+                    }
+                }
+            }, delaySeconds * 1000);
+        }
+
+        function triggerCheckin() {
+            if (!sessionActive) return;
+            checkinActive = true;
+            let countdown = CHECKIN_SECONDS;
+
+            document.getElementById('checkinOverlay').classList.add('active');
+            document.getElementById('checkinTimer').textContent = countdown;
+            playAlert();
+
+            checkinCountdown = setInterval(() => {
+                countdown--;
+                document.getElementById('checkinTimer').textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(checkinCountdown);
+                    document.getElementById('checkinOverlay').classList.remove('active');
+                    checkinActive = false;
+                    endSession(false, 'You missed the check-in!');
+                }
+            }, 1000);
+
+            checkinTimeout = setTimeout(() => {
+                if (checkinActive) {
+                    clearInterval(checkinCountdown);
+                    document.getElementById('checkinOverlay').classList.remove('active');
+                    checkinActive = false;
+                    endSession(false, 'You missed the check-in!');
+                }
+            }, (CHECKIN_SECONDS * 1000) + 500);
+        }
+
+        function confirmCheckin() {
+            if (!checkinActive) return;
+            clearInterval(checkinCountdown);
+            clearTimeout(checkinTimeout);
+            checkinActive = false;
+            document.getElementById('checkinOverlay').classList.remove('active');
+            if (sessionActive) scheduleNextCheckin();
+        }
+
+        async function triggerSelfieCheckin() {
+            if (!sessionActive) return;
+            checkinActive = true;
+            let countdown = SELFIE_SECONDS;
+
+            try {
+                // Start both cameras - back camera (environment) for main, front (user) for corner
+                backStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: { ideal: 'environment' } }, 
+                    audio: false 
+                });
+                document.getElementById('backVideo').srcObject = backStream;
+                
+                // Try to get front camera too
+                try {
+                    frontStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'user' }, 
+                        audio: false 
+                    });
+                    document.getElementById('frontVideo').srcObject = frontStream;
+                } catch (e) {
+                    console.log('Front camera not available, using back only');
+                }
+            } catch (e) {
+                console.error('Camera error:', e);
+                // Fall back to any available camera
+                try {
+                    backStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    document.getElementById('backVideo').srcObject = backStream;
+                } catch (e2) {
+                    console.error('No camera available:', e2);
+                    triggerCheckin(); // Fall back to tap check-in
+                    return;
+                }
+            }
+
+            document.getElementById('selfieOverlay').classList.add('active');
+            document.getElementById('selfieTimer').textContent = countdown;
+            playAlert();
+
+            checkinCountdown = setInterval(() => {
+                countdown--;
+                document.getElementById('selfieTimer').textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(checkinCountdown);
+                    closeSelfieOverlay();
+                    endSession(false, 'You missed the BeReal check!');
+                }
+            }, 1000);
+
+            checkinTimeout = setTimeout(() => {
+                if (checkinActive) {
+                    clearInterval(checkinCountdown);
+                    closeSelfieOverlay();
+                    endSession(false, 'You missed the BeReal check!');
+                }
+            }, (SELFIE_SECONDS * 1000) + 500);
+        }
+
+        async function captureSelfie() {
+            if (!checkinActive) return;
+
+            // Capture both cameras and composite them BeReal-style
+            const backVideo = document.getElementById('backVideo');
+            const frontVideo = document.getElementById('frontVideo');
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 600;
+            canvas.height = 800;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw back camera (main - what they're working on)
+            if (backVideo.srcObject) {
+                ctx.drawImage(backVideo, 0, 0, 600, 800);
+            }
+            
+            // Draw front camera (corner selfie) - mirrored
+            if (frontVideo.srcObject) {
+                const frontSize = { w: 150, h: 200 };
+                ctx.save();
+                ctx.translate(frontSize.w + 20, 20);
+                ctx.scale(-1, 1);
+                
+                // Rounded rectangle clip
+                ctx.beginPath();
+                ctx.roundRect(0, 0, frontSize.w, frontSize.h, 15);
+                ctx.clip();
+                
+                ctx.drawImage(frontVideo, 0, 0, frontSize.w, frontSize.h);
+                ctx.restore();
+                
+                // Border for front cam
+                ctx.strokeStyle = '#0a0a0a';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.roundRect(20, 20, frontSize.w, frontSize.h, 15);
+                ctx.stroke();
+            }
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.85);
+
+            clearInterval(checkinCountdown);
+            clearTimeout(checkinTimeout);
+            checkinActive = false;
+            closeSelfieOverlay();
+
+            if (currentChallenge?.id) {
+                try {
+                    await fetch(`${API_BASE}/api/challenges/${currentChallenge.id}/selfie`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId, imageData })
+                    });
+                } catch (e) {
+                    console.error('Selfie upload error:', e);
+                }
+            }
+
+            if (sessionActive) scheduleNextCheckin();
+        }
+
+        function closeSelfieOverlay() {
+            document.getElementById('selfieOverlay').classList.remove('active');
+            if (frontStream) {
+                frontStream.getTracks().forEach(t => t.stop());
+                frontStream = null;
+            }
+            if (backStream) {
+                backStream.getTracks().forEach(t => t.stop());
+                backStream = null;
+            }
+        }
+
+        function stopCheckins() {
+            clearTimeout(checkinInterval);
+            clearTimeout(checkinTimeout);
+            clearInterval(checkinCountdown);
+            checkinActive = false;
+            document.getElementById('checkinOverlay').classList.remove('active');
+            closeSelfieOverlay();
+        }
+
+        function playAlert() {
+            try {
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 800;
+                gain.gain.value = 0.3;
+                osc.start();
+                setTimeout(() => osc.stop(), 200);
+            } catch(e) {}
+        }
+
+        async function endSession(won, reason = '') {
+            sessionActive = false;
+            clearInterval(timerInterval);
+            stopCheckins();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+            const timeSpent = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const minsSpent = Math.floor(timeSpent / 60);
+            const secsSpent = timeSpent % 60;
+            const timeString = `${minsSpent}:${secsSpent.toString().padStart(2, '0')}`;
+
+            if (currentChallenge?.id) {
+                try {
+                    const endpoint = won ? 'complete' : 'fail';
+                    await fetch(`${API_BASE}/api/challenges/${currentChallenge.id}/${endpoint}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId })
+                    });
+                    return;
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+
+            showResult(won, timeString, reason);
+        }
+
+        function handleChallengeComplete(data) {
+            sessionActive = false;
+            clearInterval(timerInterval);
+            stopCheckins();
+
+            const won = data.winner_id === userId || (data.winner_id === 'draw');
+            const timeString = data.started_at ? formatTime(new Date(data.ended_at) - new Date(data.started_at)) : '0:00';
+            
+            showResult(won, timeString, won ? 'Amazing focus!' : 'Better luck next time!', data);
+        }
+
+        function formatTime(ms) {
+            const secs = Math.floor(ms / 1000);
+            const mins = Math.floor(secs / 60);
+            return `${mins}:${(secs % 60).toString().padStart(2, '0')}`;
+        }
+
+        function showResult(won, timeString, reason, data = null) {
+            const isDraw = data?.winner_id === 'draw';
+            
+            document.getElementById('resultIcon').textContent = isDraw ? '🤝' : (won ? '🏆' : '💀');
+            document.getElementById('resultTitle').textContent = isDraw ? 'DRAW!' : (won ? 'YOU WON!' : 'YOU LOST!');
+            document.getElementById('resultTitle').className = `result-title ${isDraw ? 'draw' : (won ? 'win' : 'lose')}`;
+            document.getElementById('resultTime').textContent = timeString;
+
+            let moneyText = `$${selectedStake}`;
+            let moneyLabel = 'Kept';
+            let winAmount = selectedStake;
+            
+            if (data?.winnings && won && !isDraw) {
+                moneyText = `+$${data.winnings}`;
+                moneyLabel = 'Won';
+                winAmount = data.winnings;
+            } else if (!won) {
+                moneyText = `-$${selectedStake}`;
+                moneyLabel = 'Lost';
+            }
+
+            document.getElementById('resultMoney').textContent = moneyText;
+            document.getElementById('resultMoney').style.color = won ? 'var(--accent)' : 'var(--danger)';
+            document.getElementById('resultMoneyLabel').textContent = moneyLabel;
+            document.getElementById('resultMessage').textContent = reason;
+
+            // Show streak bonus if applicable
+            const streakBonus = document.getElementById('streakBonus');
+            // We'll fetch this from stats
+            fetchUserStats().then(stats => {
+                if (won && stats.current_streak >= 3) {
+                    const bonusPercent = stats.current_streak >= 7 ? 10 : stats.current_streak >= 5 ? 7 : 5;
+                    document.getElementById('streakBonusAmount').textContent = `+${bonusPercent}%`;
+                    streakBonus.style.display = 'block';
+                } else {
+                    streakBonus.style.display = 'none';
+                }
+            });
+
+            // Show selfie recap if available
+            if (data?.selfies?.length > 0) {
+                generateRecap(data.selfies);
+            } else {
+                document.getElementById('recapSection').style.display = 'none';
+            }
+
+            // Generate share card for wins
+            if (won && !isDraw) {
+                launchConfetti();
+                generateShareCard(timeString, winAmount, currentChallenge?.type || 'solo');
+            } else {
+                document.getElementById('shareCardSection').style.display = 'none';
+            }
+
+            showScreen('resultScreen');
+        }
+
+        async function fetchUserStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/users/${userId}/stats`);
+                return await response.json();
+            } catch (e) {
+                return { current_streak: 0 };
+            }
+        }
+
+        function generateShareCard(timeString, winAmount, mode) {
+            const canvas = document.getElementById('shareCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, 600, 400);
+            gradient.addColorStop(0, '#0a0a0a');
+            gradient.addColorStop(1, '#1a1a1a');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 600, 400);
+            
+            // Add subtle pattern
+            ctx.fillStyle = 'rgba(0, 255, 136, 0.03)';
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * 600, Math.random() * 400, Math.random() * 50 + 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Trophy icon
+            ctx.font = '60px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('🏆', 300, 80);
+            
+            // Title
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 36px Inter, Arial';
+            ctx.fillText('FOCUS VICTORY', 300, 140);
+            
+            // Stats
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 72px Inter, Arial';
+            ctx.fillText(`+$${winAmount}`, 300, 220);
+            
+            ctx.fillStyle = '#888888';
+            ctx.font = '24px Inter, Arial';
+            ctx.fillText(`${timeString} of pure focus`, 300, 260);
+            
+            // Mode badge
+            const modeLabels = { solo: '🔒 Solo', friend: '⚔️ 1v1', royale: '👑 Royale', group: '👥 Group' };
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(220, 280, 160, 36);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '18px Inter, Arial';
+            ctx.fillText(modeLabels[mode] || mode, 300, 305);
+            
+            // Branding
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 24px Inter, Arial';
+            ctx.fillText('StakeFlow', 300, 370);
+            
+            // Convert to image
+            const imageUrl = canvas.toDataURL('image/png');
+            document.getElementById('shareCardPreview').src = imageUrl;
+            document.getElementById('shareCardSection').style.display = 'block';
+        }
+
+        function downloadShareCard() {
+            const canvas = document.getElementById('shareCanvas');
+            const link = document.createElement('a');
+            link.download = 'stakeflow-win.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        async function shareCard() {
+            const canvas = document.getElementById('shareCanvas');
+            
+            try {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const file = new File([blob], 'stakeflow-win.png', { type: 'image/png' });
+                
+                if (navigator.share && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'StakeFlow Win!',
+                        text: 'I just crushed a focus session on StakeFlow! 💪'
+                    });
+                } else {
+                    downloadShareCard();
+                }
+            } catch (e) {
+                downloadShareCard();
+            }
+        }
+
+        let recapSelfies = [];
+        let currentGalleryIndex = 0;
+        let votes = {};
+        let hasVoted = false;
+
+        async function generateRecap(selfies) {
+            if (currentChallenge?.id) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/challenges/${currentChallenge.id}/generate-recap`, {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    selfies = data.selfies || selfies;
+                } catch (e) {}
+            }
+
+            recapSelfies = selfies.map(s => {
+                const player = challengePlayers.find(p => p.user_id === s.user_id);
+                return { ...s, player_name: player?.user_name || 'Unknown' };
+            });
+            
+            // Initialize votes
+            votes = {};
+            recapSelfies.forEach(s => votes[s.user_id] = 0);
+            hasVoted = false;
+            
+            document.getElementById('recapSection').style.display = 'block';
+        }
+
+        function openRecapGallery() {
+            if (recapSelfies.length === 0) return;
+            
+            currentGalleryIndex = 0;
+            updateGalleryDisplay();
+            setupVoteButtons();
+            document.getElementById('recapModal').classList.add('active');
+        }
+
+        function closeRecapGallery(e) {
+            if (!e || e.target.classList.contains('modal-overlay')) {
+                document.getElementById('recapModal').classList.remove('active');
+            }
+        }
+
+        function updateGalleryDisplay() {
+            const selfie = recapSelfies[currentGalleryIndex];
+            if (!selfie) return;
+            
+            document.getElementById('galleryImage').src = selfie.image_path;
+            document.getElementById('galleryName').textContent = selfie.player_name;
+            document.getElementById('galleryRoast').textContent = selfie.ai_roast || 'Looking focused! 👀';
+            document.getElementById('galleryCounter').textContent = `${currentGalleryIndex + 1} / ${recapSelfies.length}`;
+            
+            // Update dots
+            const dotsHtml = recapSelfies.map((_, i) => 
+                `<div class="gallery-dot ${i === currentGalleryIndex ? 'active' : ''}" onclick="goToPhoto(${i})"></div>`
+            ).join('');
+            document.getElementById('galleryDots').innerHTML = dotsHtml;
+        }
+
+        function nextPhoto() {
+            currentGalleryIndex = (currentGalleryIndex + 1) % recapSelfies.length;
+            updateGalleryDisplay();
+        }
+
+        function prevPhoto() {
+            currentGalleryIndex = (currentGalleryIndex - 1 + recapSelfies.length) % recapSelfies.length;
+            updateGalleryDisplay();
+        }
+
+        function goToPhoto(index) {
+            currentGalleryIndex = index;
+            updateGalleryDisplay();
+        }
+
+        function setupVoteButtons() {
+            const container = document.getElementById('voteButtons');
+            container.innerHTML = recapSelfies.map(s => 
+                `<button class="vote-btn" data-userid="${s.user_id}" onclick="castVote('${s.user_id}')">${s.player_name}</button>`
+            ).join('');
+            
+            document.getElementById('voteResults').style.display = 'none';
+            document.getElementById('voteSection').style.display = recapSelfies.length > 1 ? 'block' : 'none';
+        }
+
+        function castVote(oduserId) {
+            if (hasVoted) return;
+            hasVoted = true;
+            
+            votes[oduserId] = (votes[oduserId] || 0) + 1;
+            
+            // Simulate other votes for demo
+            recapSelfies.forEach(s => {
+                if (s.user_id !== oduserId && Math.random() > 0.5) {
+                    votes[s.user_id] = (votes[s.user_id] || 0) + Math.floor(Math.random() * 3);
+                }
+            });
+            
+            // Update UI
+            document.querySelectorAll('.vote-btn').forEach(btn => {
+                btn.classList.add('disabled');
+                if (btn.dataset.userid === oduserId) {
+                    btn.classList.add('voted');
+                    btn.textContent += ' ✓';
+                }
+            });
+            
+            // Show results
+            showVoteResults();
+            
+            // Send vote to server (for real multiplayer)
+            if (currentChallenge?.id) {
+                fetch(`${API_BASE}/api/challenges/${currentChallenge.id}/vote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oduserId, oduserId })
+                }).catch(() => {});
+            }
+        }
+
+        function showVoteResults() {
+            const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
+            const maxVotes = Math.max(...Object.values(votes));
+            
+            const resultsHtml = recapSelfies.map(s => {
+                const voteCount = votes[s.user_id] || 0;
+                const percentage = totalVotes > 0 ? (voteCount / totalVotes * 100) : 0;
+                const isWinner = voteCount === maxVotes && maxVotes > 0;
+                
+                return `
+                    <div class="vote-result-item ${isWinner ? 'winner' : ''}">
+                        <div class="vote-result-name">${s.player_name}</div>
+                        <div class="vote-result-bar">
+                            <div class="vote-result-fill" style="width: ${percentage}%"></div>
+                        </div>
+                        <div class="vote-result-count">${voteCount}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('voteResultsList').innerHTML = resultsHtml;
+            document.getElementById('voteResults').style.display = 'block';
+        }
+
+        function launchConfetti() {
+            const container = document.getElementById('confettiContainer');
+            const colors = ['#00ff88', '#00d4ff', '#a855f7', '#ff6b35', '#ffd700', '#ff4757'];
+            
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                    container.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 3500);
+                }, i * 20);
+            }
+        }
+
+        // Leaderboard
+        async function openLeaderboard() {
+            document.getElementById('leaderboardModal').classList.add('active');
+            try {
+                const response = await fetch(`${API_BASE}/api/leaderboards`);
+                leaderboardData = await response.json();
+                showLeaderboard('wins');
+            } catch (e) {
+                console.error('Leaderboard error:', e);
+            }
+        }
+
+        function showLeaderboard(type) {
+            document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const list = document.getElementById('leaderboardList');
+            let data = [];
+            let valueKey = '';
+            let suffix = '';
+
+            switch(type) {
+                case 'wins': data = leaderboardData.topWins; valueKey = 'total_wins'; break;
+                case 'earnings': data = leaderboardData.topEarners; valueKey = 'money_won'; suffix = '$'; break;
+                case 'streaks': data = leaderboardData.topStreaks; valueKey = 'best_streak'; suffix = '🔥'; break;
+                case 'focus': data = leaderboardData.topFocus; valueKey = 'total_focus_minutes'; suffix = 'min'; break;
+            }
+
+            list.innerHTML = (data || []).map((user, i) => {
+                const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+                const value = type === 'earnings' ? '$' + user[valueKey] : user[valueKey] + (suffix && suffix !== '$' ? ' ' + suffix : '');
+                return `
+                    <div class="lb-item">
+                        <div class="lb-rank ${rankClass}">${i + 1}</div>
+                        <div class="lb-info">
+                            <div class="lb-name">${user.name}${user.id === userId ? ' (You)' : ''}</div>
+                            <div class="lb-stat">${user.total_sessions || 0} sessions</div>
+                        </div>
+                        <div class="lb-value">${value}</div>
+                    </div>
+                `;
+            }).join('') || '<div style="text-align:center;color:var(--text-secondary);padding:20px;">No data yet</div>';
+        }
+
+        function closeLeaderboard(e) {
+            if (!e || e.target.classList.contains('modal-overlay')) {
+                document.getElementById('leaderboardModal').classList.remove('active');
+            }
+        }
+
+        // Stats
+        async function openStats() {
+            document.getElementById('statsModal').classList.add('active');
+            try {
+                const response = await fetch(`${API_BASE}/api/users/${userId}/stats`);
+                const stats = await response.json();
+                document.getElementById('statWins').textContent = stats.total_wins || 0;
+                document.getElementById('statStreak').textContent = stats.current_streak || 0;
+                document.getElementById('statEarnings').textContent = '$' + (stats.money_won || 0);
+                document.getElementById('statSessions').textContent = stats.total_sessions || 0;
+                document.getElementById('statFocus').textContent = Math.round((stats.total_focus_minutes || 0) / 60) + 'h';
+                document.getElementById('statBestStreak').textContent = stats.best_streak || 0;
+            } catch (e) {}
+        }
+
+        function closeStats(e) {
+            if (!e || e.target.classList.contains('modal-overlay')) {
+                document.getElementById('statsModal').classList.remove('active');
+            }
+        }
+
+        // Navigation
+        function goHome() {
+            window.history.pushState({}, '', '/');
+            currentChallenge = null;
+            challengePlayers = [];
+            showScreen('setupScreen');
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(document.getElementById('inviteLink').textContent);
+            document.querySelector('.copy-btn').textContent = 'Copied!';
+            setTimeout(() => document.querySelector('.copy-btn').textContent = 'Copy', 2000);
+        }
+
+        function shareToMessages() {
+            const link = document.getElementById('inviteLink').textContent;
+            const modeText = { friend: '1v1', royale: 'Focus Royale', group: 'group' }[currentMode] || 'focus';
+            const text = `I challenge you to a ${modeText} battle! 🔥 $${selectedStake} stake. ${currentMode === 'royale' ? 'Last one standing wins!' : ''}\n\n${link}`;
+            window.open(`sms:&body=${encodeURIComponent(text)}`);
+        }
+
+        function shareNative() {
+            const link = document.getElementById('inviteLink').textContent;
+            if (navigator.share) {
+                navigator.share({ title: 'StakeFlow Challenge', text: `Join my focus challenge!`, url: link });
+            } else {
+                copyLink();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

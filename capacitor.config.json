@@ -1,0 +1,11 @@
+{
+  "appId": "work.stakeflow.app",
+  "appName": "StakeFlow",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

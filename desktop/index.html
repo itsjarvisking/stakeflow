@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StakeFlow Desktop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1a1a1a;
+            --accent: #00ff88;
+            --accent-dim: #00ff8833;
+            --danger: #ff4757;
+            --danger-dim: #ff475733;
+            --warning: #ffa502;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-tertiary: #555555;
+            --border: #2a2a2a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Draggable title bar */
+        .titlebar {
+            -webkit-app-region: drag;
+            height: 40px;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .titlebar-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .badge {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .main {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen { display: none; flex-direction: column; flex: 1; }
+        .screen.active { display: flex; }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .option {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option:hover { border-color: var(--text-tertiary); }
+        .option.selected { border-color: var(--accent); background: var(--accent-dim); }
+        .option .value { font-size: 22px; font-weight: 800; display: block; }
+        .option .label { font-size: 10px; color: var(--text-secondary); }
+
+        .feature-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .feature-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .feature-title {
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .feature-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .interval-select {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .interval-option {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .interval-option:hover { border-color: var(--text-tertiary); }
+        .interval-option.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+        .start-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--bg-primary);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: auto;
+            transition: all 0.2s;
+        }
+
+        .start-btn:hover { transform: scale(1.02); }
+        .start-btn:active { transform: scale(0.98); }
+
+        /* Timer Screen */
+        .timer-screen {
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .timer-status {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .timer-status.warning { color: var(--warning); }
+        .timer-status.danger { color: var(--danger); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .timer-display {
+            font-size: 72px;
+            font-weight: 900;
+            letter-spacing: -3px;
+            line-height: 1;
+        }
+
+        .timer-stake {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .ai-status {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ai-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .ai-indicator.warning { background: var(--danger); }
+
+        .ai-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .ai-text strong {
+            color: var(--text-primary);
+        }
+
+        .strikes {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 12px 0;
+        }
+
+        .strike {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .strike.active {
+            background: var(--danger-dim);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .cancel-btn {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.2s;
+        }
+
+        .cancel-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+        /* Result screen */
+        .result-screen {
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .result-icon { font-size: 64px; }
+        .result-title { font-size: 28px; font-weight: 900; }
+        .result-title.win { color: var(--accent); }
+        .result-title.lose { color: var(--danger); }
+        .result-message { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+
+        .again-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 12px;
+            padding: 14px 32px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--bg-primary);
+            cursor: pointer;
+        }
+
+        /* Glow effect */
+        .timer-screen.active::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+            z-index: -1;
+            animation: breathe 4s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="titlebar">
+            <span class="titlebar-title">StakeFlow</span>
+        </div>
+
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🔥</div>
+                <span>StakeFlow</span>
+            </div>
+            <span class="badge">🖥️ Desktop</span>
+        </header>
+
+        <main class="main">
+            <!-- Setup Screen -->
+            <div class="screen setup-screen active" id="setupScreen">
+                <div class="section-title">Focus Duration</div>
+                <div class="option-grid">
+                    <div class="option" data-time="15" onclick="selectTime(this)">
+                        <span class="value">15</span>
+                        <span class="label">min</span>
+                    </div>
+                    <div class="option selected" data-time="25" onclick="selectTime(this)">
+                        <span class="value">25</span>
+                        <span class="label">min</span>
+                    </div>
+                    <div class="option" data-time="45" onclick="selectTime(this)">
+                        <span class="value">45</span>
+                        <span class="label">min</span>
+                    </div>
+                    <div class="option" data-time="60" onclick="selectTime(this)">
+                        <span class="value">60</span>
+                        <span class="label">min</span>
+                    </div>
+                </div>
+
+                <div class="section-title">Your Stake</div>
+                <div class="option-grid">
+                    <div class="option" data-stake="5" onclick="selectStake(this)">$5</div>
+                    <div class="option selected" data-stake="10" onclick="selectStake(this)">$10</div>
+                    <div class="option" data-stake="25" onclick="selectStake(this)">$25</div>
+                    <div class="option" data-stake="50" onclick="selectStake(this)">$50</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <span class="feature-title">🤖 AI Screen Monitor</span>
+                    </div>
+                    <p class="feature-desc">
+                        AI takes screenshots and checks if you're distracted. 
+                        Get caught on TikTok, Instagram, or YouTube = strike.
+                        <strong>3 strikes and you lose your stake!</strong>
+                    </p>
+                    <div class="interval-select">
+                        <div class="interval-option" data-interval="30" onclick="selectInterval(this)">30s</div>
+                        <div class="interval-option selected" data-interval="60" onclick="selectInterval(this)">1 min</div>
+                        <div class="interval-option" data-interval="120" onclick="selectInterval(this)">2 min</div>
+                    </div>
+                </div>
+
+                <button class="start-btn" onclick="startSession()">
+                    🔥 Lock In - Start Session
+                </button>
+            </div>
+
+            <!-- Timer Screen -->
+            <div class="screen timer-screen" id="timerScreen">
+                <div class="timer-status" id="timerStatus">AI IS WATCHING</div>
+                <div class="timer-display" id="timerDisplay">25:00</div>
+                <div class="timer-stake" id="timerStake">$10 at stake</div>
+                
+                <div class="ai-status">
+                    <div class="ai-indicator" id="aiIndicator"></div>
+                    <span class="ai-text" id="aiText"><strong>AI Active</strong> - Next scan in <span id="nextScan">60</span>s</span>
+                </div>
+
+                <div class="strikes" id="strikes">
+                    <div class="strike" id="strike1">✕</div>
+                    <div class="strike" id="strike2">✕</div>
+                    <div class="strike" id="strike3">✕</div>
+                </div>
+
+                <button class="cancel-btn" onclick="cancelSession()">Give Up (Lose Stake)</button>
+            </div>
+
+            <!-- Result Screen -->
+            <div class="screen result-screen" id="resultScreen">
+                <div class="result-icon" id="resultIcon">🏆</div>
+                <div class="result-title" id="resultTitle">YOU WON!</div>
+                <div class="result-message" id="resultMessage">
+                    You stayed focused and kept your $10!
+                </div>
+                <button class="again-btn" onclick="goToSetup()">Start Another Session</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let selectedTime = 25;
+        let selectedStake = 10;
+        let selectedInterval = 60;
+        let timerInterval = null;
+        let scanCountdown = null;
+        let remainingSeconds = 0;
+        let strikes = 0;
+
+        function selectTime(el) {
+            document.querySelectorAll('.option-grid .option[data-time]').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedTime = parseInt(el.dataset.time);
+        }
+
+        function selectStake(el) {
+            document.querySelectorAll('.option-grid .option[data-stake]').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedStake = parseInt(el.dataset.stake);
+        }
+
+        function selectInterval(el) {
+            document.querySelectorAll('.interval-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedInterval = parseInt(el.dataset.interval);
+        }
+
+        async function startSession() {
+            remainingSeconds = selectedTime * 60;
+            strikes = 0;
+            
+            updateStrikes();
+            showScreen('timerScreen');
+            updateTimerDisplay();
+            document.getElementById('timerStake').textContent = `$${selectedStake} at stake`;
+
+            // Start the session in main process
+            await ipcRenderer.invoke('start-session', {
+                stake: selectedStake,
+                duration: selectedTime * 60,
+                interval: selectedInterval
+            });
+
+            // Start timer
+            timerInterval = setInterval(timerTick, 1000);
+            
+            // Start scan countdown
+            let scanTime = selectedInterval;
+            document.getElementById('nextScan').textContent = scanTime;
+            scanCountdown = setInterval(() => {
+                scanTime--;
+                if (scanTime <= 0) scanTime = selectedInterval;
+                document.getElementById('nextScan').textContent = scanTime;
+            }, 1000);
+        }
+
+        function timerTick() {
+            remainingSeconds--;
+            updateTimerDisplay();
+            
+            if (remainingSeconds <= 0) {
+                endSession(true);
+            }
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(remainingSeconds / 60);
+            const secs = remainingSeconds % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateStrikes() {
+            for (let i = 1; i <= 3; i++) {
+                const el = document.getElementById(`strike${i}`);
+                if (i <= strikes) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            }
+        }
+
+        // Listen for screenshot analysis results
+        ipcRenderer.on('screenshot-taken', (event, analysis) => {
+            const indicator = document.getElementById('aiIndicator');
+            const aiText = document.getElementById('aiText');
+            
+            if (analysis.distracted) {
+                strikes++;
+                updateStrikes();
+                indicator.classList.add('warning');
+                aiText.innerHTML = `<strong style="color: var(--danger)">⚠️ DISTRACTION DETECTED!</strong> ${analysis.app || 'Stay focused!'}`;
+                
+                setTimeout(() => {
+                    indicator.classList.remove('warning');
+                    aiText.innerHTML = `<strong>AI Active</strong> - Next scan in <span id="nextScan">${selectedInterval}</span>s`;
+                }, 5000);
+            }
+        });
+
+        ipcRenderer.on('session-failed', (event, data) => {
+            endSession(false, data.reason);
+        });
+
+        async function endSession(won, reason = '') {
+            clearInterval(timerInterval);
+            clearInterval(scanCountdown);
+            
+            await ipcRenderer.invoke('end-session', { won });
+            
+            document.getElementById('resultIcon').textContent = won ? '🏆' : '💀';
+            document.getElementById('resultTitle').textContent = won ? 'YOU WON!' : 'YOU LOST!';
+            document.getElementById('resultTitle').className = `result-title ${won ? 'win' : 'lose'}`;
+            
+            const msg = won 
+                ? `You stayed focused for ${selectedTime} minutes and kept your $${selectedStake}!`
+                : reason || `You got distracted! Lost $${selectedStake}.`;
+            document.getElementById('resultMessage').textContent = msg;
+            
+            showScreen('resultScreen');
+        }
+
+        function cancelSession() {
+            if (confirm('Give up? You will lose your stake!')) {
+                endSession(false, 'You gave up!');
+            }
+        }
+
+        function goToSetup() {
+            showScreen('setupScreen');
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+    </script>
+</body>
+</html>

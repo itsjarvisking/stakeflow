@@ -1,0 +1,30 @@
+{
+  "name": "stakeflow-desktop",
+  "version": "1.0.0",
+  "description": "StakeFlow - Focus with money on the line. AI monitors your screen.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "author": "Ethan King",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "anthropic": "^0.14.0"
+  },
+  "build": {
+    "appId": "com.stakeflow.app",
+    "productName": "StakeFlow",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "icon.icns"
+    },
+    "win": {
+      "icon": "icon.ico"
+    }
+  }
+}
