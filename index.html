@@ -2166,6 +2166,8 @@
         let frontStream = null;
         let backStream = null;
         let leaderboardData = null;
+        let selfieStage = 0; // 0 = front, 1 = back
+        let frontCaptureData = null; // Store front camera capture
 
         function generateUserId() {
             const id = 'user_' + Math.random().toString(36).substring(2, 15);
@@ -3479,6 +3481,10 @@
             // Strong haptic to get attention
             haptic("warning");
 
+            // Reset selfie state
+            selfieStage = 0;
+            frontCaptureData = null;
+            
             try {
                 // Start with front camera (selfie view)
                 frontStream = await navigator.mediaDevices.getUserMedia({ 
@@ -3488,9 +3494,13 @@
                 document.getElementById('frontVideo').srcObject = frontStream;
                 document.getElementById('backVideo').srcObject = null;
                 
-                // Reset UI
-                document.querySelector('.bereal-back').style.display = 'block';
+                // Show front camera in the main view
+                document.querySelector('.bereal-back').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-size:14px;">Back camera next...</div>';
                 document.querySelector('.bereal-front').style.cssText = '';
+                
+                // Update button text
+                document.querySelector('.selfie-btn').innerHTML = '📸';
+                document.querySelector('.checkin-message').textContent = 'Take your selfie first!';
             } catch (e) {
                 console.error('Camera error:', e);
                 // Fall back to tap check-in if camera fails
@@ -3533,137 +3543,142 @@
             const frontVideo = document.getElementById('frontVideo');
             const backVideo = document.getElementById('backVideo');
             
-            // Canvas for final composite
+            if (selfieStage === 0) {
+                // STAGE 1: Capture front camera
+                console.log('📸 Stage 1: Capturing front camera...');
+                
+                // Capture front camera to canvas
+                const frontCanvas = document.createElement('canvas');
+                frontCanvas.width = 300;
+                frontCanvas.height = 400;
+                const frontCtx = frontCanvas.getContext('2d');
+                
+                frontCtx.save();
+                frontCtx.translate(frontCanvas.width, 0);
+                frontCtx.scale(-1, 1); // Mirror for natural selfie
+                frontCtx.drawImage(frontVideo, 0, 0, frontCanvas.width, frontCanvas.height);
+                frontCtx.restore();
+                
+                frontCaptureData = frontCanvas.toDataURL('image/jpeg', 0.9);
+                
+                // Show captured selfie in the corner
+                document.querySelector('.bereal-front video').style.display = 'none';
+                const frontPreview = document.createElement('img');
+                frontPreview.src = frontCaptureData;
+                frontPreview.style.cssText = 'width:100%;height:100%;object-fit:cover;transform:none;';
+                document.querySelector('.bereal-front').appendChild(frontPreview);
+                
+                // Stop front camera
+                if (frontStream) {
+                    frontStream.getTracks().forEach(t => t.stop());
+                    frontStream = null;
+                }
+                frontVideo.srcObject = null;
+                
+                // Switch to back camera
+                selfieStage = 1;
+                document.querySelector('.checkin-message').textContent = 'Now show what you\'re working on!';
+                
+                try {
+                    // Try to get back camera
+                    backStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: { ideal: 'environment' } }, 
+                        audio: false 
+                    });
+                    
+                    // Show back camera in main view
+                    document.querySelector('.bereal-back').innerHTML = '<video id="backVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>';
+                    document.getElementById('backVideo').srcObject = backStream;
+                    
+                    console.log('✅ Back camera ready - waiting for user to capture');
+                } catch (e) {
+                    console.error('❌ Back camera failed:', e);
+                    // Skip to final composite with placeholder
+                    selfieStage = 2;
+                    await finalizeSelfie(null);
+                }
+                
+                return; // Wait for second tap
+            }
+            
+            if (selfieStage === 1) {
+                // STAGE 2: Capture back camera
+                console.log('📸 Stage 2: Capturing back camera...');
+                
+                const backCanvas = document.createElement('canvas');
+                backCanvas.width = 600;
+                backCanvas.height = 800;
+                const backCtx = backCanvas.getContext('2d');
+                
+                const currentBackVideo = document.getElementById('backVideo');
+                if (currentBackVideo && backStream) {
+                    backCtx.drawImage(currentBackVideo, 0, 0, backCanvas.width, backCanvas.height);
+                }
+                
+                const backCaptureData = backCanvas.toDataURL('image/jpeg', 0.9);
+                
+                // Stop back camera
+                if (backStream) {
+                    backStream.getTracks().forEach(t => t.stop());
+                    backStream = null;
+                }
+                if (currentBackVideo) currentBackVideo.srcObject = null;
+                
+                selfieStage = 2;
+                await finalizeSelfie(backCaptureData);
+            }
+        }
+        
+        async function finalizeSelfie(backCaptureData) {
+            // Composite both images
             const canvas = document.createElement('canvas');
             canvas.width = 600;
             canvas.height = 800;
             const ctx = canvas.getContext('2d');
             
-            // Step 1: Capture front camera frame
-            const frontCanvas = document.createElement('canvas');
-            frontCanvas.width = 150;
-            frontCanvas.height = 200;
-            const frontCtx = frontCanvas.getContext('2d');
-            if (frontStream) {
-                frontCtx.save();
-                frontCtx.translate(frontCanvas.width, 0);
-                frontCtx.scale(-1, 1); // Mirror
-                frontCtx.drawImage(frontVideo, 0, 0, frontCanvas.width, frontCanvas.height);
-                frontCtx.restore();
-            }
-            
-            // Step 2: Stop front, start back camera
-            if (frontStream) {
-                frontStream.getTracks().forEach(t => t.stop());
-                frontStream = null;
-            }
-            document.getElementById('frontVideo').srcObject = null;
-            
-            try {
-                // Try to get back camera - try multiple methods
-                let gotBackCamera = false;
-                
-                // Method 1: Try with ideal constraint (most compatible)
-                try {
-                    backStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: { ideal: 'environment' } }, 
-                        audio: false 
-                    });
-                    gotBackCamera = true;
-                    console.log('✅ Got back camera with ideal constraint');
-                } catch (e1) {
-                    console.log('❌ ideal constraint failed:', e1.message);
-                }
-                
-                // Method 2: Try with exact constraint
-                if (!gotBackCamera) {
-                    try {
-                        backStream = await navigator.mediaDevices.getUserMedia({ 
-                            video: { facingMode: 'environment' }, 
-                            audio: false 
-                        });
-                        gotBackCamera = true;
-                        console.log('✅ Got back camera with simple constraint');
-                    } catch (e2) {
-                        console.log('❌ simple constraint failed:', e2.message);
-                    }
-                }
-                
-                // Method 3: Enumerate devices and pick back camera
-                if (!gotBackCamera) {
-                    try {
-                        const devices = await navigator.mediaDevices.enumerateDevices();
-                        const videoDevices = devices.filter(d => d.kind === 'videoinput');
-                        console.log('📷 Video devices:', videoDevices.map(d => d.label));
-                        
-                        // Usually back camera is index 0 on iOS
-                        const backCam = videoDevices.find(d => d.label.toLowerCase().includes('back')) || videoDevices[0];
-                        if (backCam) {
-                            backStream = await navigator.mediaDevices.getUserMedia({ 
-                                video: { deviceId: { exact: backCam.deviceId } }, 
-                                audio: false 
-                            });
-                            gotBackCamera = true;
-                            console.log('✅ Got back camera by deviceId:', backCam.label);
-                        }
-                    } catch (e3) {
-                        console.log('❌ deviceId method failed:', e3.message);
-                    }
-                }
-                
-                if (gotBackCamera && backStream) {
-                    backVideo.srcObject = backStream;
-                    
-                    // Wait for video to be ready
-                    await new Promise(resolve => {
-                        backVideo.onloadedmetadata = resolve;
-                        setTimeout(resolve, 1000); // Timeout fallback
-                    });
-                    await new Promise(r => setTimeout(r, 300)); // Extra stabilization
-                    
-                    // Capture back camera (main image)
-                    ctx.drawImage(backVideo, 0, 0, canvas.width, canvas.height);
-                    
-                    // Stop back camera
-                    backStream.getTracks().forEach(t => t.stop());
-                    backStream = null;
-                    backVideo.srcObject = null;
-                    console.log('✅ Back camera captured successfully');
-                } else {
-                    throw new Error('Could not access back camera');
-                }
-            } catch (e) {
-                console.error('❌ Back camera failed:', e);
-                // If back camera fails, fill with gradient background
+            // Draw back camera (main)
+            if (backCaptureData) {
+                const backImg = new Image();
+                await new Promise(resolve => {
+                    backImg.onload = resolve;
+                    backImg.src = backCaptureData;
+                });
+                ctx.drawImage(backImg, 0, 0, canvas.width, canvas.height);
+            } else {
+                // Placeholder if back camera failed
                 const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 gradient.addColorStop(0, '#2a2a2a');
                 gradient.addColorStop(1, '#1a1a1a');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#666';
-                ctx.font = '48px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('📱', canvas.width/2, canvas.height/2 - 30);
-                ctx.font = '16px Inter, sans-serif';
-                ctx.fillText('Back camera unavailable', canvas.width/2, canvas.height/2 + 30);
             }
             
-            // Step 4: Composite front camera in corner (BeReal style)
-            ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(20, 20, 150, 200, 15);
-            ctx.clip();
-            ctx.drawImage(frontCanvas, 20, 20, 150, 200);
-            ctx.restore();
-            
-            // Border for front cam
-            ctx.strokeStyle = '#0a0a0a';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.roundRect(20, 20, 150, 200, 15);
-            ctx.stroke();
+            // Draw front camera in corner
+            if (frontCaptureData) {
+                const frontImg = new Image();
+                await new Promise(resolve => {
+                    frontImg.onload = resolve;
+                    frontImg.src = frontCaptureData;
+                });
+                
+                // Rounded corner mask
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(20, 20, 150, 200, 15);
+                ctx.clip();
+                ctx.drawImage(frontImg, 20, 20, 150, 200);
+                ctx.restore();
+                
+                // Border
+                ctx.strokeStyle = '#0a0a0a';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.roundRect(20, 20, 150, 200, 15);
+                ctx.stroke();
+            }
             
             const imageData = canvas.toDataURL('image/jpeg', 0.85);
+            console.log('✅ Selfie composite complete!');
 
             clearInterval(checkinCountdown);
             clearTimeout(checkinTimeout);
@@ -3688,6 +3703,10 @@
         function closeSelfieOverlay() {
             document.getElementById('selfieOverlay').classList.remove('active');
             
+            // Reset selfie state
+            selfieStage = 0;
+            frontCaptureData = null;
+            
             // Stop and clear front stream
             if (frontStream) {
                 frontStream.getTracks().forEach(t => t.stop());
@@ -3699,11 +3718,20 @@
                 backStream = null;
             }
             
-            // Clear video element sources to prevent "source not found" errors
+            // Clear video element sources
             const frontVideo = document.getElementById('frontVideo');
             const backVideo = document.getElementById('backVideo');
-            if (frontVideo) frontVideo.srcObject = null;
+            if (frontVideo) {
+                frontVideo.srcObject = null;
+                frontVideo.style.display = 'block';
+            }
             if (backVideo) backVideo.srcObject = null;
+            
+            // Reset UI elements
+            document.querySelector('.bereal-back').innerHTML = '<video id="backVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>';
+            const frontContainer = document.querySelector('.bereal-front');
+            const extraImg = frontContainer.querySelector('img');
+            if (extraImg) extraImg.remove();
         }
 
         function stopCheckins() {
