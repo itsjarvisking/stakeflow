@@ -10,8 +10,121 @@ const appleSignin = require('apple-signin-auth');
 const path = require('path');
 const fs = require('fs');
 
-// Use JSON database for Railway compatibility (no native deps)
-const db = require('./db');
+// Use PostgreSQL if DATABASE_URL is set, otherwise JSON file
+let db;
+let usePostgres = false;
+let pgPool;
+
+if (process.env.DATABASE_URL) {
+    const { Pool } = require('pg');
+    pgPool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+    });
+    usePostgres = true;
+    console.log('✅ Using PostgreSQL database');
+    
+    // Initialize tables
+    (async () => {
+        try {
+            await pgPool.query(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id VARCHAR(50) PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE,
+                    password_hash VARCHAR(255),
+                    apple_id VARCHAR(255),
+                    name VARCHAR(255) DEFAULT 'Anonymous',
+                    avatar_url TEXT,
+                    balance INTEGER DEFAULT 0,
+                    stripe_customer_id VARCHAR(255),
+                    stripe_connect_id VARCHAR(255),
+                    stripe_connect_verified INTEGER DEFAULT 0,
+                    total_sessions INTEGER DEFAULT 0,
+                    total_wins INTEGER DEFAULT 0,
+                    total_focus_minutes INTEGER DEFAULT 0,
+                    money_won INTEGER DEFAULT 0,
+                    money_lost INTEGER DEFAULT 0,
+                    current_streak INTEGER DEFAULT 0,
+                    best_streak INTEGER DEFAULT 0,
+                    last_session_date TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            await pgPool.query(`
+                CREATE TABLE IF NOT EXISTS challenges (
+                    id VARCHAR(20) PRIMARY KEY,
+                    type VARCHAR(20),
+                    creator_id VARCHAR(50),
+                    stake_amount INTEGER,
+                    duration_minutes INTEGER,
+                    max_players INTEGER DEFAULT 2,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    winner_id VARCHAR(50),
+                    started_at TIMESTAMP,
+                    ended_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            await pgPool.query(`
+                CREATE TABLE IF NOT EXISTS challenge_players (
+                    id SERIAL PRIMARY KEY,
+                    challenge_id VARCHAR(20),
+                    user_id VARCHAR(50),
+                    user_name VARCHAR(255),
+                    paid INTEGER DEFAULT 0,
+                    ready INTEGER DEFAULT 0,
+                    failed INTEGER DEFAULT 0,
+                    failed_at TIMESTAMP,
+                    completed INTEGER DEFAULT 0,
+                    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            await pgPool.query(`
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(50),
+                    type VARCHAR(50),
+                    amount INTEGER,
+                    description TEXT,
+                    challenge_id VARCHAR(20),
+                    stripe_payment_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            await pgPool.query(`
+                CREATE TABLE IF NOT EXISTS selfies (
+                    id SERIAL PRIMARY KEY,
+                    challenge_id VARCHAR(20),
+                    user_id VARCHAR(50),
+                    image_path TEXT,
+                    captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ai_roast TEXT
+                )
+            `);
+            console.log('✅ PostgreSQL tables ready');
+        } catch (e) {
+            console.error('PostgreSQL init error:', e);
+        }
+    })();
+    
+    // Create db wrapper for PostgreSQL
+    db = {
+        prepare: (sql) => {
+            // Convert ? to $1, $2, etc
+            let i = 0;
+            const pgSql = sql.replace(/\?/g, () => `$${++i}`);
+            return {
+                run: (...params) => pgPool.query(pgSql, params).then(r => ({ changes: r.rowCount })),
+                get: (...params) => pgPool.query(pgSql, params).then(r => r.rows[0] || null),
+                all: (...params) => pgPool.query(pgSql, params).then(r => r.rows)
+            };
+        },
+        exec: (sql) => pgPool.query(sql)
+    };
+} else {
+    db = require('./db');
+    console.log('⚠️ Using JSON file database (data will not persist on Render)');
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -64,7 +177,7 @@ function authMiddleware(req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.userId = decoded.userId;
-        req.user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.userId);
+        req.user = await db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.userId);
         if (!req.user) {
             return res.status(401).json({ error: 'User not found' });
         }
@@ -81,7 +194,7 @@ function optionalAuth(req, res, next) {
         try {
             const decoded = jwt.verify(token, JWT_SECRET);
             req.userId = decoded.userId;
-            req.user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.userId);
+            req.user = await db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.userId);
         } catch (e) {}
     }
     next();
@@ -109,7 +222,7 @@ app.post('/api/auth/signup', async (req, res) => {
         }
         
         // Check if email exists
-        const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
+        const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
         if (existing) {
             return res.status(400).json({ error: 'Email already registered' });
         }
@@ -126,7 +239,7 @@ app.post('/api/auth/signup', async (req, res) => {
         
         // Generate token
         const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
         
         res.json({
             success: true,
@@ -144,7 +257,7 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email?.toLowerCase());
+        const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email?.toLowerCase());
         if (!user || !user.password_hash) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
@@ -193,14 +306,14 @@ app.post('/api/auth/apple', async (req, res) => {
         const name = appleUser?.name ? `${appleUser.name.firstName || ''} ${appleUser.name.lastName || ''}`.trim() : null;
         
         // Check if user exists
-        let user = db.prepare('SELECT * FROM users WHERE apple_id = ?').get(appleId);
+        let user = await db.prepare('SELECT * FROM users WHERE apple_id = ?').get(appleId);
         
         if (!user && email) {
             // Check by email
-            user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
+            user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
             if (user) {
                 // Link Apple ID to existing account
-                db.prepare('UPDATE users SET apple_id = ? WHERE id = ?').run(appleId, user.id);
+                await db.prepare('UPDATE users SET apple_id = ? WHERE id = ?').run(appleId, user.id);
             }
         }
         
@@ -211,7 +324,7 @@ app.post('/api/auth/apple', async (req, res) => {
                 INSERT INTO users (id, apple_id, email, name)
                 VALUES (?, ?, ?, ?)
             `).run(userId, appleId, email?.toLowerCase(), name || 'StakeFlow User');
-            user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+            user = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
         }
         
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
@@ -238,13 +351,13 @@ app.patch('/api/auth/me', authMiddleware, (req, res) => {
         const { name, avatar_url } = req.body;
         
         if (name) {
-            db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.userId);
+            await db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.userId);
         }
         if (avatar_url) {
-            db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatar_url, req.userId);
+            await db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatar_url, req.userId);
         }
         
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
         res.json({ user: sanitizeUser(user) });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -309,7 +422,7 @@ app.post('/api/wallet/add-funds', authMiddleware, async (req, res) => {
                 metadata: { userId: req.userId }
             });
             customerId = customer.id;
-            db.prepare('UPDATE users SET stripe_customer_id = ? WHERE id = ?').run(customerId, req.userId);
+            await db.prepare('UPDATE users SET stripe_customer_id = ? WHERE id = ?').run(customerId, req.userId);
         }
         
         // Create payment intent
@@ -353,7 +466,7 @@ app.post('/api/wallet/confirm-funds', authMiddleware, async (req, res) => {
         }
         
         // Check if already processed
-        const existing = db.prepare('SELECT id FROM transactions WHERE stripe_payment_id = ?').get(paymentIntentId);
+        const existing = await db.prepare('SELECT id FROM transactions WHERE stripe_payment_id = ?').get(paymentIntentId);
         if (existing) {
             return res.json({ success: true, message: 'Already processed' });
         }
@@ -361,7 +474,7 @@ app.post('/api/wallet/confirm-funds', authMiddleware, async (req, res) => {
         const amount = paymentIntent.amount; // Already in cents
         
         // Add to balance
-        db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(amount, req.userId);
+        await db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(amount, req.userId);
         
         // Record transaction
         db.prepare(`
@@ -369,7 +482,7 @@ app.post('/api/wallet/confirm-funds', authMiddleware, async (req, res) => {
             VALUES (?, 'deposit', ?, 'Added funds', ?)
         `).run(req.userId, amount, paymentIntentId);
         
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
         
         res.json({
             success: true,
@@ -398,7 +511,7 @@ app.post('/api/wallet/setup-withdraw', authMiddleware, async (req, res) => {
                 metadata: { userId: req.userId }
             });
             connectId = account.id;
-            db.prepare('UPDATE users SET stripe_connect_id = ? WHERE id = ?').run(connectId, req.userId);
+            await db.prepare('UPDATE users SET stripe_connect_id = ? WHERE id = ?').run(connectId, req.userId);
         }
         
         // Create account link for onboarding
@@ -444,7 +557,7 @@ app.post('/api/wallet/withdraw', authMiddleware, async (req, res) => {
         });
         
         // Deduct from balance
-        db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(amountCents, req.userId);
+        await db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(amountCents, req.userId);
         
         // Record transaction
         db.prepare(`
@@ -452,7 +565,7 @@ app.post('/api/wallet/withdraw', authMiddleware, async (req, res) => {
             VALUES (?, 'withdrawal', ?, 'Withdrawal to bank', ?)
         `).run(req.userId, -amountCents, transfer.id);
         
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
         
         res.json({
             success: true,
@@ -488,7 +601,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         case 'account.updated':
             const account = event.data.object;
             if (account.charges_enabled && account.payouts_enabled) {
-                db.prepare('UPDATE users SET stripe_connect_verified = 1 WHERE stripe_connect_id = ?').run(account.id);
+                await db.prepare('UPDATE users SET stripe_connect_verified = 1 WHERE stripe_connect_id = ?').run(account.id);
             }
             break;
     }
@@ -516,14 +629,14 @@ app.post('/api/solo/start', authMiddleware, async (req, res) => {
         
         // Deduct stake
         if (stakeAmountCents > 0) {
-            db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(stakeAmountCents, req.userId);
+            await db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(stakeAmountCents, req.userId);
             db.prepare(`
                 INSERT INTO transactions (user_id, type, amount, description)
                 VALUES (?, 'stake', ?, 'Solo session stake')
             `).run(req.userId, -stakeAmountCents);
         }
         
-        const updatedUser = db.prepare('SELECT balance FROM users WHERE id = ?').get(req.userId);
+        const updatedUser = await db.prepare('SELECT balance FROM users WHERE id = ?').get(req.userId);
         
         res.json({
             success: true,
@@ -548,7 +661,7 @@ app.post('/api/solo/complete', authMiddleware, async (req, res) => {
         
         if (won && stakeAmountCents > 0) {
             // Return stake on win
-            db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(stakeAmountCents, req.userId);
+            await db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(stakeAmountCents, req.userId);
             db.prepare(`
                 INSERT INTO transactions (user_id, type, amount, description)
                 VALUES (?, 'win', ?, 'Solo session completed')
@@ -569,7 +682,7 @@ app.post('/api/solo/complete', authMiddleware, async (req, res) => {
             `).run(stakeAmountCents, req.userId);
         }
         
-        const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+        const updatedUser = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
         
         res.json({
             success: true,
@@ -623,7 +736,7 @@ app.post('/api/challenges', optionalAuth, async (req, res) => {
         
         // Deduct stake from balance if authenticated
         if (req.user && type !== 'solo') {
-            db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(stakeAmount, userId);
+            await db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(stakeAmount, userId);
             db.prepare(`
                 INSERT INTO transactions (user_id, type, amount, description, challenge_id)
                 VALUES (?, 'stake', ?, 'Staked for challenge', ?)
@@ -644,12 +757,12 @@ app.post('/api/challenges', optionalAuth, async (req, res) => {
 // Get challenge details
 app.get('/api/challenges/:id', (req, res) => {
     try {
-        const challenge = db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
+        const challenge = await db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
         if (!challenge) {
             return res.status(404).json({ error: 'Challenge not found' });
         }
         
-        const players = db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
+        const players = await db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
         const creator = players.find(p => p.user_id === challenge.creator_id);
         
         const fee = getPlatformFee(challenge.stake_amount);
@@ -674,7 +787,7 @@ app.post('/api/challenges/:id/join', optionalAuth, async (req, res) => {
         const finalUserId = req.userId || userId;
         const finalUserName = req.user?.name || userName;
         
-        const challenge = db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
+        const challenge = await db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
         if (!challenge) {
             return res.status(404).json({ error: 'Challenge not found' });
         }
@@ -683,7 +796,7 @@ app.post('/api/challenges/:id/join', optionalAuth, async (req, res) => {
             return res.status(400).json({ error: 'Challenge already started' });
         }
         
-        const players = db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
+        const players = await db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
         if (players.length >= challenge.max_players) {
             return res.status(400).json({ error: 'Challenge is full' });
         }
@@ -695,7 +808,7 @@ app.post('/api/challenges/:id/join', optionalAuth, async (req, res) => {
             }
             
             // Deduct stake
-            db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(challenge.stake_amount, finalUserId);
+            await db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(challenge.stake_amount, finalUserId);
             db.prepare(`
                 INSERT INTO transactions (user_id, type, amount, description, challenge_id)
                 VALUES (?, 'stake', ?, 'Staked for challenge', ?)
@@ -707,7 +820,7 @@ app.post('/api/challenges/:id/join', optionalAuth, async (req, res) => {
             VALUES (?, ?, ?, 1)
         `).run(req.params.id, finalUserId, finalUserName || 'Anonymous');
         
-        const updatedPlayers = db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
+        const updatedPlayers = await db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
         
         io.to(req.params.id).emit('player:joined', { 
             challengeId: req.params.id,
@@ -731,8 +844,8 @@ app.post('/api/challenges/:id/ready', (req, res) => {
             WHERE challenge_id = ? AND user_id = ?
         `).run(req.params.id, userId);
         
-        const players = db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
-        const challenge = db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
+        const players = await db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
+        const challenge = await db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
         
         const allReady = players.length >= 2 && players.every(p => p.ready);
         
@@ -765,7 +878,7 @@ app.post('/api/challenges/:id/fail', optionalAuth, async (req, res) => {
         const { userId, reason } = req.body;
         const finalUserId = req.userId || userId;
         
-        const challenge = db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
+        const challenge = await db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
         if (!challenge) {
             return res.status(404).json({ error: 'Challenge not found' });
         }
@@ -777,7 +890,7 @@ app.post('/api/challenges/:id/fail', optionalAuth, async (req, res) => {
         `).run(new Date().toISOString(), req.params.id, finalUserId);
         
         // Update user stats
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(finalUserId);
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(finalUserId);
         if (user) {
             db.prepare(`
                 UPDATE users SET 
@@ -800,7 +913,7 @@ app.post('/api/challenges/:id/fail', optionalAuth, async (req, res) => {
         });
         
         // Check if challenge should end
-        const players = db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
+        const players = await db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
         const activePlayers = players.filter(p => !p.failed);
         
         if (challenge.type === 'friend' && activePlayers.length === 1) {
@@ -824,7 +937,7 @@ app.post('/api/challenges/:id/complete', optionalAuth, async (req, res) => {
         const { userId } = req.body;
         const finalUserId = req.userId || userId;
         
-        const challenge = db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
+        const challenge = await db.prepare('SELECT * FROM challenges WHERE id = ?').get(req.params.id);
         if (!challenge) {
             return res.status(404).json({ error: 'Challenge not found' });
         }
@@ -838,7 +951,7 @@ app.post('/api/challenges/:id/complete', optionalAuth, async (req, res) => {
         // Solo mode: Just return stake (they beat themselves)
         if (challenge.type === 'solo') {
             // Refund stake since they won against themselves
-            const user = db.prepare('SELECT * FROM users WHERE id = ?').get(finalUserId);
+            const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(finalUserId);
             if (user) {
                 db.prepare(`
                     UPDATE users SET 
@@ -864,7 +977,7 @@ app.post('/api/challenges/:id/complete', optionalAuth, async (req, res) => {
             return;
         }
         
-        const players = db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
+        const players = await db.prepare('SELECT * FROM challenge_players WHERE challenge_id = ?').all(req.params.id);
         const completedPlayers = players.filter(p => p.completed);
         const failedPlayers = players.filter(p => p.failed);
         
@@ -892,13 +1005,13 @@ async function endChallengeWithWinner(challengeId, winnerId, challenge, players)
         .run(winnerId, new Date().toISOString(), challengeId);
     
     // Add winnings to winner's balance
-    const winner = db.prepare('SELECT * FROM users WHERE id = ?').get(winnerId);
+    const winner = await db.prepare('SELECT * FROM users WHERE id = ?').get(winnerId);
     if (winner) {
         const streak = winner.current_streak || 0;
         const bonus = getStreakBonus(streak);
         const totalWinnings = Math.round(winnings * (1 + bonus));
         
-        db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(totalWinnings, winnerId);
+        await db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(totalWinnings, winnerId);
         
         db.prepare(`
             UPDATE users SET 
@@ -942,10 +1055,10 @@ async function endGroupChallenge(challengeId, challenge, players) {
     
     // Refund stakes + distribute winnings
     for (const survivor of survivors) {
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(survivor.user_id);
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(survivor.user_id);
         if (user) {
             const refund = challenge.stake_amount + perSurvivor;
-            db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(refund, survivor.user_id);
+            await db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(refund, survivor.user_id);
             
             db.prepare(`
                 INSERT INTO transactions (user_id, type, amount, description, challenge_id)
@@ -967,7 +1080,7 @@ async function endGroupChallenge(challengeId, challenge, players) {
 // Get user stats
 app.get('/api/users/:id/stats', (req, res) => {
     try {
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
         if (!user) {
             return res.json({
                 total_sessions: 0,
