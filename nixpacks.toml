@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["python3", "gcc", "gnumake", "nodejs_20"]
+nixPkgs = ["python311", "gcc", "gnumake", "pkg-config"]
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm ci || npm install"]
 
 [start]
 cmd = "node server/index.js"
