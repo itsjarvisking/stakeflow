@@ -3001,11 +3001,45 @@
             }
         }
 
-        function startSoloSession() {
+        async function startSoloSession() {
+            // Check balance for solo stakes
+            if (currentUser && selectedStake > 0) {
+                const stakeAmountCents = selectedStake * 100;
+                if ((currentUser.balance || 0) < stakeAmountCents) {
+                    alert(`Not enough balance! You have $${(currentUser.balance || 0) / 100}. Add funds first or set stake to $0.`);
+                    return;
+                }
+                
+                // Deduct stake from balance via API
+                try {
+                    const response = await fetch(`${API_BASE}/api/solo/start`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({ stake: selectedStake, duration: selectedTime })
+                    });
+                    const data = await response.json();
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    currentUser.balance = data.newBalance;
+                    updateHeaderBalance();
+                    currentChallenge = { ...data.challenge, type: 'solo' };
+                } catch (e) {
+                    console.error('Solo start error:', e);
+                    alert('Failed to start session');
+                    return;
+                }
+            } else {
+                currentChallenge = { type: 'solo', stake_amount: selectedStake * 100, duration_minutes: selectedTime };
+            }
+            
             sessionActive = true;
             sessionStartTime = Date.now();
             remainingSeconds = selectedTime * 60;
-            currentChallenge = { type: 'solo', stake_amount: selectedStake * 100, duration_minutes: selectedTime };
             challengePlayers = [{ user_id: userId, user_name: userName }];
 
             showScreen('timerScreen');
@@ -3810,6 +3844,7 @@
             const timeString = `${minsSpent}:${secsSpent.toString().padStart(2, '0')}`;
 
             if (currentChallenge?.id) {
+                // Multiplayer challenge
                 try {
                     const endpoint = won ? 'complete' : 'fail';
                     await fetch(`${API_BASE}/api/challenges/${currentChallenge.id}/${endpoint}`, {
@@ -3820,6 +3855,25 @@
                     return;
                 } catch (error) {
                     console.error('Error:', error);
+                }
+            } else if (currentChallenge?.type === 'solo' && authToken && selectedStake > 0) {
+                // Solo session with stake - call API to settle
+                try {
+                    const response = await fetch(`${API_BASE}/api/solo/complete`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({ stake: selectedStake, won })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        currentUser.balance = data.newBalance;
+                        updateHeaderBalance();
+                    }
+                } catch (error) {
+                    console.error('Solo complete error:', error);
                 }
             }
 

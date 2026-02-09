@@ -493,6 +493,95 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 });
 
 // =====================
+// SOLO SESSION ROUTES
+// =====================
+
+// Start solo session with stake
+app.post('/api/solo/start', authMiddleware, async (req, res) => {
+    try {
+        const { stake, duration } = req.body;
+        const stakeAmountCents = Math.round((stake || 0) * 100);
+        
+        // Check balance
+        if (stakeAmountCents > 0 && req.user.balance < stakeAmountCents) {
+            return res.status(400).json({ 
+                error: `Insufficient balance. You have $${(req.user.balance / 100).toFixed(2)}`,
+                balance: req.user.balance
+            });
+        }
+        
+        // Deduct stake
+        if (stakeAmountCents > 0) {
+            db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(stakeAmountCents, req.userId);
+            db.prepare(`
+                INSERT INTO transactions (user_id, type, amount, description)
+                VALUES (?, 'stake', ?, 'Solo session stake')
+            `).run(req.userId, -stakeAmountCents);
+        }
+        
+        const updatedUser = db.prepare('SELECT balance FROM users WHERE id = ?').get(req.userId);
+        
+        res.json({
+            success: true,
+            challenge: {
+                type: 'solo',
+                stake_amount: stakeAmountCents,
+                duration_minutes: duration
+            },
+            newBalance: updatedUser.balance
+        });
+    } catch (error) {
+        console.error('Solo start error:', error);
+        res.status(500).json({ error: 'Failed to start solo session' });
+    }
+});
+
+// Complete solo session
+app.post('/api/solo/complete', authMiddleware, async (req, res) => {
+    try {
+        const { stake, won } = req.body;
+        const stakeAmountCents = Math.round((stake || 0) * 100);
+        
+        if (won && stakeAmountCents > 0) {
+            // Return stake on win
+            db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(stakeAmountCents, req.userId);
+            db.prepare(`
+                INSERT INTO transactions (user_id, type, amount, description)
+                VALUES (?, 'win', ?, 'Solo session completed')
+            `).run(req.userId, stakeAmountCents);
+            
+            // Update stats
+            db.prepare(`
+                UPDATE users SET total_wins = total_wins + 1, total_sessions = total_sessions + 1,
+                current_streak = current_streak + 1, best_streak = MAX(best_streak, current_streak + 1)
+                WHERE id = ?
+            `).run(req.userId);
+        } else if (!won && stakeAmountCents > 0) {
+            // Lost - stake already deducted, just update stats
+            db.prepare(`
+                UPDATE users SET total_sessions = total_sessions + 1, current_streak = 0,
+                money_lost = money_lost + ?
+                WHERE id = ?
+            `).run(stakeAmountCents, req.userId);
+        }
+        
+        const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+        
+        res.json({
+            success: true,
+            newBalance: updatedUser.balance,
+            stats: {
+                total_wins: updatedUser.total_wins,
+                current_streak: updatedUser.current_streak
+            }
+        });
+    } catch (error) {
+        console.error('Solo complete error:', error);
+        res.status(500).json({ error: 'Failed to complete session' });
+    }
+});
+
+// =====================
 // CHALLENGE ROUTES (Updated to use auth & wallet)
 // =====================
 
