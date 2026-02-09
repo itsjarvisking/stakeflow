@@ -3561,12 +3561,9 @@
                 
                 frontCaptureData = frontCanvas.toDataURL('image/jpeg', 0.9);
                 
-                // Show captured selfie in the corner
-                document.querySelector('.bereal-front video').style.display = 'none';
-                const frontPreview = document.createElement('img');
-                frontPreview.src = frontCaptureData;
-                frontPreview.style.cssText = 'width:100%;height:100%;object-fit:cover;transform:none;';
-                document.querySelector('.bereal-front').appendChild(frontPreview);
+                // Show captured selfie in the corner (replace video with image)
+                const frontContainer = document.querySelector('.bereal-front');
+                frontContainer.innerHTML = `<img src="${frontCaptureData}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`;
                 
                 // Stop front camera
                 if (frontStream) {
@@ -3727,11 +3724,12 @@
             }
             if (backVideo) backVideo.srcObject = null;
             
-            // Reset UI elements
+            // Reset UI elements completely
             document.querySelector('.bereal-back').innerHTML = '<video id="backVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>';
+            
+            // Reset front container - remove any added images and restore video
             const frontContainer = document.querySelector('.bereal-front');
-            const extraImg = frontContainer.querySelector('img');
-            if (extraImg) extraImg.remove();
+            frontContainer.innerHTML = '<video id="frontVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);"></video>';
         }
 
         function stopCheckins() {
