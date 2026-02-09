@@ -2841,7 +2841,13 @@
                     return;
                 }
                 currentChallenge = { ...data, type: currentMode, stake_amount: selectedStake * 100, duration_minutes: selectedTime, max_players: maxPlayers };
-                socket.emit('join:challenge', data.challengeId);
+                if (socket && socket.connected) {
+                    socket.emit('join:challenge', data.challengeId);
+                } else {
+                    console.log('Socket not connected, reconnecting...');
+                    connectSocket();
+                    setTimeout(() => socket?.emit('join:challenge', data.challengeId), 1000);
+                }
 
                 const shareUrl = `${window.location.origin}/challenge/${data.challengeId}`;
                 document.getElementById('inviteLink').textContent = shareUrl;
@@ -2856,8 +2862,8 @@
                 updatePlayersWaiting([{ user_id: userId, user_name: userName, paid: true }]);
                 showScreen('inviteScreen');
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error creating challenge');
+                console.error('Challenge creation error:', error);
+                alert('Error creating challenge: ' + (error.message || 'Check console for details'));
             }
         }
 
