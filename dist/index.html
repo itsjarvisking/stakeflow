@@ -12,7 +12,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="/config.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * {
@@ -42,6 +41,10 @@
             --safe-bottom: env(safe-area-inset-bottom);
         }
 
+        html {
+            background: var(--bg-primary);
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-primary);
@@ -49,8 +52,7 @@
             min-height: 100vh;
             min-height: 100dvh;
             overflow-x: hidden;
-            padding-top: var(--safe-top);
-            padding-bottom: var(--safe-bottom);
+            /* Remove padding - handle in app container instead */
         }
 
         .app {
@@ -60,14 +62,21 @@
             min-height: 100dvh;
             display: flex;
             flex-direction: column;
+            background: var(--bg-primary);
+            /* Push content below safe area but keep bg extending to edges */
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
         }
 
         .header {
-            padding: 16px 20px;
+            padding: 12px 20px;
+            padding-top: max(12px, calc(var(--safe-top) + 8px));
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border);
+            /* Extra space for dynamic island */
+            margin-top: 0;
         }
 
         .logo {
@@ -674,9 +683,43 @@
             color: var(--text-secondary);
             cursor: pointer;
             margin-top: 12px;
+            position: relative;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .cancel-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+        .cancel-btn .cancel-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--danger-dim), var(--danger));
+            transition: none;
+            pointer-events: none;
+        }
+
+        .cancel-btn.holding {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .cancel-btn.holding .cancel-fill {
+            animation: cancel-fill 3s linear forwards;
+        }
+
+        @keyframes cancel-fill {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        .cancel-btn-text {
+            position: relative;
+            z-index: 1;
+        }
 
         /* Result screen */
         .result-screen { text-align: center; justify-content: center; align-items: center; gap: 20px; }
@@ -1378,7 +1421,10 @@
                     <strong>Don't break the rules.</strong><br>
                     Stay focused or lose your stake.
                 </div>
-                <button class="cancel-btn" onclick="cancelSession()">Give Up (Lose Stake)</button>
+                <button class="cancel-btn" id="cancelBtn">
+                    <div class="cancel-fill"></div>
+                    <span class="cancel-btn-text">Hold to Give Up</span>
+                </button>
             </div>
 
             <!-- Result Screen -->
@@ -1540,7 +1586,7 @@
     <div class="confetti-container" id="confettiContainer"></div>
 
     <script>
-        const API_BASE = window.STAKEFLOW_API || window.location.origin;
+        const API_BASE = window.location.origin;
         const CHECKIN_SECONDS = 25;
         const SELFIE_SECONDS = 30;
         
@@ -1890,6 +1936,7 @@
             document.getElementById('activePlayers').innerHTML = '';
             updateTimerDisplay();
             startTimer();
+            setupCancelButton();
         }
 
         function startTimerFromChallenge(challenge) {
@@ -1911,6 +1958,7 @@
             updateActivePlayers();
             updateTimerDisplay();
             startTimer();
+            setupCancelButton();
         }
 
         function updateActivePlayers() {
@@ -1967,6 +2015,60 @@
             if (document.hidden && sessionActive) endSession(false, 'You switched away!');
         }
 
+        // Hold-to-cancel with haptics
+        let cancelHoldTimeout = null;
+        let cancelHapticInterval = null;
+        
+        function setupCancelButton() {
+            const btn = document.getElementById('cancelBtn');
+            if (!btn) return;
+            
+            const startHold = (e) => {
+                e.preventDefault();
+                btn.classList.add('holding');
+                
+                // Haptic feedback at start
+                if (navigator.vibrate) navigator.vibrate(20);
+                
+                // Continuous light haptics while holding
+                cancelHapticInterval = setInterval(() => {
+                    if (navigator.vibrate) navigator.vibrate(10);
+                }, 500);
+                
+                // After 3 seconds, trigger cancel
+                cancelHoldTimeout = setTimeout(() => {
+                    clearInterval(cancelHapticInterval);
+                    // Strong haptic on complete
+                    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+                    btn.classList.remove('holding');
+                    endSession(false, 'You gave up!');
+                }, 3000);
+            };
+            
+            const endHold = () => {
+                clearTimeout(cancelHoldTimeout);
+                clearInterval(cancelHapticInterval);
+                btn.classList.remove('holding');
+                // Reset the fill animation
+                const fill = btn.querySelector('.cancel-fill');
+                if (fill) {
+                    fill.style.animation = 'none';
+                    fill.offsetHeight; // Trigger reflow
+                    fill.style.animation = '';
+                }
+            };
+            
+            // Touch events for mobile
+            btn.addEventListener('touchstart', startHold, { passive: false });
+            btn.addEventListener('touchend', endHold);
+            btn.addEventListener('touchcancel', endHold);
+            
+            // Mouse events for desktop
+            btn.addEventListener('mousedown', startHold);
+            btn.addEventListener('mouseup', endHold);
+            btn.addEventListener('mouseleave', endHold);
+        }
+
         function cancelSession() {
             if (confirm('Are you sure? You will lose your stake!')) endSession(false, 'You gave up!');
         }
@@ -2006,6 +2108,8 @@
         function startCheckins() {
             if (!focusOptions.checkins && !focusOptions.selfie) return;
             
+            // Clear any existing check-in state
+            clearTimeout(checkinInterval);
             checkinCount = 0;
             checkinSchedule = [];
             
@@ -2013,44 +2117,67 @@
             const config = getCheckinConfig(sessionMinutes);
             targetCheckins = config.total;
             
-            // Build the schedule
-            let currentTime = randomInRange(config.first[0], config.first[1]) * 60; // First check-in time in seconds
+            console.log('🎯 Starting check-ins for', sessionMinutes, 'min session');
+            console.log('🎯 Config:', config);
+            
+            // Build the schedule - times are ABSOLUTE from session start
+            let currentTime = randomInRange(config.first[0], config.first[1]) * 60; // First check-in in seconds
             
             for (let i = 0; i < targetCheckins; i++) {
-                // Add ±20% randomness to interval
-                const variance = 0.2;
-                const intervalBase = randomInRange(config.interval[0], config.interval[1]) * 60;
-                const interval = intervalBase * (1 + (Math.random() - 0.5) * variance * 2);
-                
                 checkinSchedule.push({
                     time: Math.round(currentTime),
                     isSelfie: focusOptions.selfie && (!focusOptions.checkins || Math.random() > 0.5)
                 });
                 
+                // Add interval for next one
+                const variance = 0.2;
+                const intervalBase = randomInRange(config.interval[0], config.interval[1]) * 60;
+                const interval = intervalBase * (1 + (Math.random() - 0.5) * variance * 2);
                 currentTime += interval;
             }
             
             // Filter out any check-ins that would happen after session ends
             const sessionSeconds = sessionMinutes * 60;
-            checkinSchedule = checkinSchedule.filter(c => c.time < sessionSeconds - 30); // Leave 30s buffer at end
+            checkinSchedule = checkinSchedule.filter(c => c.time < sessionSeconds - 30);
             targetCheckins = checkinSchedule.length;
             
-            console.log(`Session: ${sessionMinutes}min | Check-ins: ${targetCheckins}`);
-            console.log('Schedule:', checkinSchedule.map(c => `${Math.round(c.time/60)}min (${c.isSelfie ? 'selfie' : 'tap'})`).join(', '));
+            if (targetCheckins === 0) {
+                console.log('⚠️ No check-ins scheduled (session too short or disabled)');
+                return;
+            }
             
+            console.log(`✅ Scheduled ${targetCheckins} check-ins:`);
+            checkinSchedule.forEach((c, i) => {
+                console.log(`   ${i+1}. At ${Math.round(c.time)}s (${Math.round(c.time/60)}min) - ${c.isSelfie ? 'selfie' : 'tap'}`);
+            });
+            
+            // Start scheduling
             scheduleNextCheckin();
         }
 
         function scheduleNextCheckin() {
-            if (checkinCount >= checkinSchedule.length) return;
+            if (!sessionActive) {
+                console.log('❌ Session not active, skipping check-in schedule');
+                return;
+            }
+            
+            if (checkinCount >= checkinSchedule.length) {
+                console.log('✅ All check-ins completed!');
+                return;
+            }
             
             const nextCheckin = checkinSchedule[checkinCount];
-            const elapsedSeconds = (Date.now() - sessionStartTime) / 1000;
-            const delaySeconds = Math.max(5, nextCheckin.time - elapsedSeconds); // At least 5 second delay
+            const elapsedMs = Date.now() - sessionStartTime;
+            const elapsedSeconds = elapsedMs / 1000;
+            const delayMs = Math.max(3000, (nextCheckin.time * 1000) - elapsedMs); // At least 3 second delay
             
-            console.log(`Check-in ${checkinCount + 1}/${targetCheckins} in ${Math.round(delaySeconds)}s (${nextCheckin.isSelfie ? 'selfie' : 'tap'})`);
+            console.log(`⏰ Check-in ${checkinCount + 1}/${targetCheckins} scheduled in ${Math.round(delayMs/1000)}s`);
+            
+            // Clear any existing timeout
+            clearTimeout(checkinInterval);
             
             checkinInterval = setTimeout(() => {
+                console.log(`🔔 Triggering check-in ${checkinCount + 1}!`);
                 if (sessionActive && !checkinActive) {
                     checkinCount++;
                     if (nextCheckin.isSelfie) {
@@ -2058,8 +2185,10 @@
                     } else {
                         triggerCheckin();
                     }
+                } else {
+                    console.log('⚠️ Check-in skipped: sessionActive=', sessionActive, 'checkinActive=', checkinActive);
                 }
-            }, delaySeconds * 1000);
+            }, delayMs);
         }
 
         function triggerCheckin() {
