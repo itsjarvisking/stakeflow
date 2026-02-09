@@ -632,6 +632,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
-server.listen(PORT, () => {
-    console.log(`🔥 StakeFlow server running on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🔥 StakeFlow server running on port ${PORT}`);
 });
