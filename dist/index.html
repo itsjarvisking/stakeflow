@@ -3480,15 +3480,17 @@
             haptic("warning");
 
             try {
-                // Use front camera (selfie) - iOS can only use one camera at a time
+                // Start with front camera (selfie view)
                 frontStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 960 } }, 
                     audio: false 
                 });
                 document.getElementById('frontVideo').srcObject = frontStream;
-                // Hide the back camera view since we're only using front
-                document.querySelector('.bereal-back').style.display = 'none';
-                document.querySelector('.bereal-front').style.cssText = 'position:relative;top:0;left:0;width:100%;height:100%;border:none;border-radius:20px;';
+                document.getElementById('backVideo').srcObject = null;
+                
+                // Reset UI
+                document.querySelector('.bereal-back').style.display = 'block';
+                document.querySelector('.bereal-front').style.cssText = '';
             } catch (e) {
                 console.error('Camera error:', e);
                 // Fall back to tap check-in if camera fails
@@ -3525,23 +3527,77 @@
 
         async function captureSelfie() {
             if (!checkinActive) return;
-
-            // Capture front camera selfie
-            const frontVideo = document.getElementById('frontVideo');
             
+            haptic("medium");
+
+            const frontVideo = document.getElementById('frontVideo');
+            const backVideo = document.getElementById('backVideo');
+            
+            // Canvas for final composite
             const canvas = document.createElement('canvas');
-            canvas.width = 720;
-            canvas.height = 960;
+            canvas.width = 600;
+            canvas.height = 800;
             const ctx = canvas.getContext('2d');
             
-            // Draw front camera (mirrored for natural selfie look)
-            if (frontVideo.srcObject) {
-                ctx.save();
-                ctx.translate(canvas.width, 0);
-                ctx.scale(-1, 1);
-                ctx.drawImage(frontVideo, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
+            // Step 1: Capture front camera frame
+            const frontCanvas = document.createElement('canvas');
+            frontCanvas.width = 150;
+            frontCanvas.height = 200;
+            const frontCtx = frontCanvas.getContext('2d');
+            if (frontStream) {
+                frontCtx.save();
+                frontCtx.translate(frontCanvas.width, 0);
+                frontCtx.scale(-1, 1); // Mirror
+                frontCtx.drawImage(frontVideo, 0, 0, frontCanvas.width, frontCanvas.height);
+                frontCtx.restore();
             }
+            
+            // Step 2: Stop front, start back camera
+            if (frontStream) {
+                frontStream.getTracks().forEach(t => t.stop());
+            }
+            
+            try {
+                backStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: { exact: 'environment' }, width: { ideal: 720 }, height: { ideal: 960 } }, 
+                    audio: false 
+                });
+                backVideo.srcObject = backStream;
+                
+                // Wait for back camera to stabilize
+                await new Promise(r => setTimeout(r, 500));
+                
+                // Step 3: Capture back camera (main image)
+                ctx.drawImage(backVideo, 0, 0, canvas.width, canvas.height);
+                
+                // Stop back camera
+                backStream.getTracks().forEach(t => t.stop());
+                backStream = null;
+            } catch (e) {
+                // If back camera fails, fill with dark background
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#888';
+                ctx.font = '20px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('📸', canvas.width/2, canvas.height/2 - 20);
+                ctx.fillText('Back camera unavailable', canvas.width/2, canvas.height/2 + 20);
+            }
+            
+            // Step 4: Composite front camera in corner (BeReal style)
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(20, 20, 150, 200, 15);
+            ctx.clip();
+            ctx.drawImage(frontCanvas, 20, 20, 150, 200);
+            ctx.restore();
+            
+            // Border for front cam
+            ctx.strokeStyle = '#0a0a0a';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(20, 20, 150, 200, 15);
+            ctx.stroke();
             
             const imageData = canvas.toDataURL('image/jpeg', 0.85);
 
