@@ -2078,8 +2078,8 @@
         let stripe, elements, cardElement, paymentRequest;
         let selectedPaymentAmount = 50;
         
-        // API URL - using localtunnel for now
-        const PROD_API = 'https://stakeflow.loca.lt';
+        // Production API on Render
+        const PROD_API = 'https://stakeflow-gggp.onrender.com';
         const isNativeApp = window.Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:';
         const API_BASE = isNativeApp ? PROD_API : window.location.origin;
         const CHECKIN_SECONDS = 25;
