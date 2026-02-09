@@ -3555,7 +3555,9 @@
             // Step 2: Stop front, start back camera
             if (frontStream) {
                 frontStream.getTracks().forEach(t => t.stop());
+                frontStream = null;
             }
+            document.getElementById('frontVideo').srcObject = null;
             
             try {
                 backStream = await navigator.mediaDevices.getUserMedia({ 
@@ -3573,6 +3575,7 @@
                 // Stop back camera
                 backStream.getTracks().forEach(t => t.stop());
                 backStream = null;
+                backVideo.srcObject = null;
             } catch (e) {
                 // If back camera fails, fill with dark background
                 ctx.fillStyle = '#1a1a1a';
@@ -3623,14 +3626,23 @@
 
         function closeSelfieOverlay() {
             document.getElementById('selfieOverlay').classList.remove('active');
+            
+            // Stop and clear front stream
             if (frontStream) {
                 frontStream.getTracks().forEach(t => t.stop());
                 frontStream = null;
             }
+            // Stop and clear back stream
             if (backStream) {
                 backStream.getTracks().forEach(t => t.stop());
                 backStream = null;
             }
+            
+            // Clear video element sources to prevent "source not found" errors
+            const frontVideo = document.getElementById('frontVideo');
+            const backVideo = document.getElementById('backVideo');
+            if (frontVideo) frontVideo.srcObject = null;
+            if (backVideo) backVideo.srcObject = null;
         }
 
         function stopCheckins() {
