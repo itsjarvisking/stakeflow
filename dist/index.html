@@ -13,6 +13,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
     <style>
         * {
             margin: 0;
@@ -1986,10 +1987,96 @@
         </div>
     </div>
 
+    <!-- Payment Modal -->
+    <div class="modal-overlay" id="paymentModal" onclick="closePaymentModal(event)">
+        <div class="modal" onclick="event.stopPropagation()" style="max-height: 85vh;">
+            <div class="modal-header">
+                <span class="modal-title">💳 Add Funds</span>
+                <button class="modal-close" onclick="closePaymentModal()">&times;</button>
+            </div>
+            
+            <div style="padding: 0 4px;">
+                <div class="section-title">Select Amount</div>
+                <div class="amount-grid">
+                    <div class="amount-option" data-amount="10" onclick="selectPaymentAmount(10)">$10</div>
+                    <div class="amount-option" data-amount="25" onclick="selectPaymentAmount(25)">$25</div>
+                    <div class="amount-option selected" data-amount="50" onclick="selectPaymentAmount(50)">$50</div>
+                    <div class="amount-option" data-amount="100" onclick="selectPaymentAmount(100)">$100</div>
+                    <div class="amount-option" data-amount="200" onclick="selectPaymentAmount(200)">$200</div>
+                    <div class="amount-option" data-amount="500" onclick="selectPaymentAmount(500)">$500</div>
+                </div>
+                
+                <!-- Apple Pay / Google Pay Button -->
+                <div id="payment-request-button" style="margin-bottom: 16px;"></div>
+                
+                <div class="auth-divider">or pay with card</div>
+                
+                <!-- Card Element -->
+                <div id="card-element" style="background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px;"></div>
+                <div id="card-errors" style="color: var(--danger); font-size: 13px; margin-bottom: 16px;"></div>
+                
+                <button class="auth-btn" id="payBtn" onclick="submitPayment()" style="width: 100%;">
+                    Pay $50
+                </button>
+                
+                <div style="text-align: center; margin-top: 12px; font-size: 11px; color: var(--text-tertiary);">
+                    🔒 Secured by Stripe
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="modal-overlay" id="withdrawModal" onclick="closeWithdrawModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">🏦 Withdraw Funds</span>
+                <button class="modal-close" onclick="closeWithdrawModal()">&times;</button>
+            </div>
+            
+            <div style="padding: 0 4px;">
+                <div id="withdrawSetup" style="display: none;">
+                    <div style="text-align: center; padding: 20px 0;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🏦</div>
+                        <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Set Up Withdrawals</div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+                            Connect your bank account to withdraw your winnings. This only takes a minute.
+                        </div>
+                        <button class="auth-btn" onclick="setupStripeConnect()" style="width: 100%;">
+                            Connect Bank Account
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="withdrawForm" style="display: none;">
+                    <div class="wallet-card" style="margin-bottom: 16px;">
+                        <div class="wallet-card-label">Available to Withdraw</div>
+                        <div class="wallet-card-amount" id="withdrawAvailable">$0.00</div>
+                    </div>
+                    
+                    <div class="section-title">Withdraw Amount</div>
+                    <input type="number" class="auth-input" id="withdrawAmount" placeholder="Enter amount ($10 min)" min="10" style="margin-bottom: 16px;">
+                    
+                    <button class="auth-btn" onclick="submitWithdraw()" style="width: 100%;">
+                        Withdraw to Bank
+                    </button>
+                    
+                    <div style="text-align: center; margin-top: 12px; font-size: 11px; color: var(--text-tertiary);">
+                        Withdrawals typically arrive in 1-2 business days
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Confetti Container -->
     <div class="confetti-container" id="confettiContainer"></div>
 
     <script>
+        // Stripe
+        const STRIPE_PK = 'pk_live_51S6eN4GpCQRiCzceOx073AMt10Yb0TojcLOKcrXH9Sanrctp8CixC8t1xdxUQFKl5WyHOngfAjddRLarQ3A9MN4k00gwOXlllA';
+        let stripe, elements, cardElement, paymentRequest;
+        let selectedPaymentAmount = 50;
         const API_BASE = window.location.origin;
         const CHECKIN_SECONDS = 25;
         const SELFIE_SECONDS = 30;
@@ -2239,25 +2326,283 @@
             }
         }
         
+        function initStripe() {
+            if (!stripe) {
+                stripe = Stripe(STRIPE_PK);
+                elements = stripe.elements({
+                    fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' }]
+                });
+                
+                // Create card element
+                cardElement = elements.create('card', {
+                    style: {
+                        base: {
+                            color: '#ffffff',
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: '16px',
+                            '::placeholder': { color: '#555555' }
+                        },
+                        invalid: { color: '#ff4757' }
+                    }
+                });
+            }
+        }
+        
         function openAddFunds() {
-            // For now, show a simple alert - Stripe integration needs frontend setup
-            const amount = prompt('Enter amount to add ($5 - $500):');
-            if (amount && !isNaN(amount) && parseFloat(amount) >= 5) {
-                alert('Stripe payment integration coming soon! For testing, funds will be added.');
-                // TODO: Implement Stripe Elements payment form
+            initStripe();
+            document.getElementById('paymentModal').classList.add('active');
+            
+            // Mount card element
+            setTimeout(() => {
+                cardElement.mount('#card-element');
+                cardElement.on('change', (event) => {
+                    const errorEl = document.getElementById('card-errors');
+                    errorEl.textContent = event.error ? event.error.message : '';
+                });
+            }, 100);
+            
+            // Setup Apple Pay / Google Pay
+            setupPaymentRequest();
+            
+            // Select default amount
+            selectPaymentAmount(50);
+        }
+        
+        function setupPaymentRequest() {
+            paymentRequest = stripe.paymentRequest({
+                country: 'US',
+                currency: 'usd',
+                total: { label: 'Add Funds to StakeFlow', amount: selectedPaymentAmount * 100 },
+                requestPayerName: true,
+                requestPayerEmail: true
+            });
+            
+            const prButton = elements.create('paymentRequestButton', {
+                paymentRequest,
+                style: { paymentRequestButton: { type: 'default', theme: 'dark', height: '48px' } }
+            });
+            
+            paymentRequest.canMakePayment().then((result) => {
+                if (result) {
+                    prButton.mount('#payment-request-button');
+                } else {
+                    document.getElementById('payment-request-button').style.display = 'none';
+                }
+            });
+            
+            paymentRequest.on('paymentmethod', async (ev) => {
+                try {
+                    // Create payment intent
+                    const response = await fetch(`${API_BASE}/api/wallet/add-funds`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({ amount: selectedPaymentAmount })
+                    });
+                    const { clientSecret, error } = await response.json();
+                    
+                    if (error) {
+                        ev.complete('fail');
+                        return;
+                    }
+                    
+                    const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+                        clientSecret,
+                        { payment_method: ev.paymentMethod.id },
+                        { handleActions: false }
+                    );
+                    
+                    if (confirmError) {
+                        ev.complete('fail');
+                    } else {
+                        ev.complete('success');
+                        if (paymentIntent.status === 'succeeded') {
+                            await confirmFundsAdded(paymentIntent.id);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Payment error:', e);
+                    ev.complete('fail');
+                }
+            });
+        }
+        
+        function selectPaymentAmount(amount) {
+            selectedPaymentAmount = amount;
+            document.querySelectorAll('.amount-option').forEach(el => {
+                el.classList.toggle('selected', parseInt(el.dataset.amount) === amount);
+            });
+            document.getElementById('payBtn').textContent = `Pay $${amount}`;
+            
+            if (paymentRequest) {
+                paymentRequest.update({ total: { label: 'Add Funds to StakeFlow', amount: amount * 100 } });
+            }
+        }
+        
+        async function submitPayment() {
+            const btn = document.getElementById('payBtn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            
+            try {
+                // Create payment intent
+                const response = await fetch(`${API_BASE}/api/wallet/add-funds`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ amount: selectedPaymentAmount })
+                });
+                const { clientSecret, error } = await response.json();
+                
+                if (error) {
+                    document.getElementById('card-errors').textContent = error;
+                    btn.disabled = false;
+                    btn.textContent = `Pay $${selectedPaymentAmount}`;
+                    return;
+                }
+                
+                // Confirm payment
+                const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+                    payment_method: { card: cardElement }
+                });
+                
+                if (confirmError) {
+                    document.getElementById('card-errors').textContent = confirmError.message;
+                    btn.disabled = false;
+                    btn.textContent = `Pay $${selectedPaymentAmount}`;
+                } else if (paymentIntent.status === 'succeeded') {
+                    await confirmFundsAdded(paymentIntent.id);
+                }
+            } catch (e) {
+                console.error('Payment error:', e);
+                document.getElementById('card-errors').textContent = 'Payment failed. Please try again.';
+                btn.disabled = false;
+                btn.textContent = `Pay $${selectedPaymentAmount}`;
+            }
+        }
+        
+        async function confirmFundsAdded(paymentIntentId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/wallet/confirm-funds`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ paymentIntentId })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser.balance = data.newBalance;
+                    updateHeaderBalance();
+                    closePaymentModal();
+                    
+                    // Show success
+                    alert(`✅ $${selectedPaymentAmount} added to your wallet!`);
+                    
+                    // Refresh wallet if on wallet screen
+                    if (document.getElementById('walletScreen').classList.contains('active')) {
+                        loadWallet();
+                    }
+                }
+            } catch (e) {
+                console.error('Confirm funds error:', e);
+            }
+            
+            const btn = document.getElementById('payBtn');
+            btn.disabled = false;
+            btn.textContent = `Pay $${selectedPaymentAmount}`;
+        }
+        
+        function closePaymentModal(e) {
+            if (!e || e.target.classList.contains('modal-overlay')) {
+                document.getElementById('paymentModal').classList.remove('active');
+                if (cardElement) cardElement.unmount();
             }
         }
         
         function openWithdraw() {
-            if (!currentUser?.hasStripeConnect) {
-                alert('You need to set up withdrawals first. This will open Stripe to verify your identity.');
-                // TODO: Implement Stripe Connect onboarding
+            document.getElementById('withdrawModal').classList.add('active');
+            
+            if (currentUser?.hasStripeConnect) {
+                document.getElementById('withdrawSetup').style.display = 'none';
+                document.getElementById('withdrawForm').style.display = 'block';
+                document.getElementById('withdrawAvailable').textContent = '$' + (currentUser.balance || 0).toFixed(2);
+            } else {
+                document.getElementById('withdrawSetup').style.display = 'block';
+                document.getElementById('withdrawForm').style.display = 'none';
+            }
+        }
+        
+        async function setupStripeConnect() {
+            try {
+                const response = await fetch(`${API_BASE}/api/wallet/setup-withdraw`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert('Error setting up withdrawals. Please try again.');
+                }
+            } catch (e) {
+                console.error('Setup connect error:', e);
+                alert('Error setting up withdrawals. Please try again.');
+            }
+        }
+        
+        async function submitWithdraw() {
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            
+            if (!amount || amount < 10) {
+                alert('Minimum withdrawal is $10');
                 return;
             }
-            const amount = prompt('Enter amount to withdraw ($10 minimum):');
-            if (amount && !isNaN(amount) && parseFloat(amount) >= 10) {
-                // TODO: Implement withdrawal
-                alert('Withdrawal feature coming soon!');
+            
+            if (amount > currentUser.balance) {
+                alert('Insufficient balance');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/wallet/withdraw`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ amount })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser.balance = data.newBalance;
+                    updateHeaderBalance();
+                    closeWithdrawModal();
+                    alert(`✅ $${amount.toFixed(2)} withdrawal initiated! It will arrive in 1-2 business days.`);
+                    loadWallet();
+                } else {
+                    alert(data.error || 'Withdrawal failed');
+                }
+            } catch (e) {
+                console.error('Withdraw error:', e);
+                alert('Withdrawal failed. Please try again.');
+            }
+        }
+        
+        function closeWithdrawModal(e) {
+            if (!e || e.target.classList.contains('modal-overlay')) {
+                document.getElementById('withdrawModal').classList.remove('active');
             }
         }
         

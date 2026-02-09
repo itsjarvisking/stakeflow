@@ -1070,6 +1070,14 @@ io.on('connection', (socket) => {
     });
 });
 
+// Apple Pay domain verification
+app.get('/.well-known/apple-developer-merchantid-domain-association', (req, res) => {
+    // This file needs to be downloaded from Stripe Dashboard
+    // Settings > Payments > Apple Pay > Add domain
+    res.type('text/plain');
+    res.send('Replace this with the actual verification string from Stripe');
+});
+
 // Catch-all for SPA
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
