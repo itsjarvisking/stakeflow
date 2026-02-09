@@ -47,5 +47,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>StakeFlow needs camera access for selfie check-ins during focus sessions to prove you're staying focused.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>StakeFlow may use the microphone for video check-ins.</string>
 </dict>
 </plist>

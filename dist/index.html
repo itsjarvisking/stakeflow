@@ -2224,6 +2224,21 @@
             updateHeaderBalance();
             showScreen('setupScreen');
             updateUI();
+            
+            // Request camera permission early for selfie check-ins
+            requestCameraPermission();
+        }
+        
+        async function requestCameraPermission() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                // Got permission, stop the stream
+                stream.getTracks().forEach(track => track.stop());
+                console.log('✅ Camera permission granted');
+            } catch (e) {
+                console.log('📸 Camera permission not yet granted:', e.message);
+                // Will ask again when needed during selfie check-in
+            }
         }
         
         function toggleAuthMode(e) {
