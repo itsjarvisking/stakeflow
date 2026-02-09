@@ -1,13 +1,14 @@
 services:
   - type: web
-    name: stakeflow-api
-    runtime: node
+    name: stakeflow
+    env: node
+    plan: free
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server/index.js
     envVars:
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        value: stakeflow_prod_2026
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
-    healthCheckPath: /
-    autoDeploy: true
