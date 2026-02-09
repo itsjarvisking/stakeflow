@@ -3560,31 +3560,92 @@
             document.getElementById('frontVideo').srcObject = null;
             
             try {
-                backStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: { exact: 'environment' }, width: { ideal: 720 }, height: { ideal: 960 } }, 
-                    audio: false 
-                });
-                backVideo.srcObject = backStream;
+                // Try to get back camera - try multiple methods
+                let gotBackCamera = false;
                 
-                // Wait for back camera to stabilize
-                await new Promise(r => setTimeout(r, 500));
+                // Method 1: Try with ideal constraint (most compatible)
+                try {
+                    backStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: { ideal: 'environment' } }, 
+                        audio: false 
+                    });
+                    gotBackCamera = true;
+                    console.log('✅ Got back camera with ideal constraint');
+                } catch (e1) {
+                    console.log('❌ ideal constraint failed:', e1.message);
+                }
                 
-                // Step 3: Capture back camera (main image)
-                ctx.drawImage(backVideo, 0, 0, canvas.width, canvas.height);
+                // Method 2: Try with exact constraint
+                if (!gotBackCamera) {
+                    try {
+                        backStream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: 'environment' }, 
+                            audio: false 
+                        });
+                        gotBackCamera = true;
+                        console.log('✅ Got back camera with simple constraint');
+                    } catch (e2) {
+                        console.log('❌ simple constraint failed:', e2.message);
+                    }
+                }
                 
-                // Stop back camera
-                backStream.getTracks().forEach(t => t.stop());
-                backStream = null;
-                backVideo.srcObject = null;
+                // Method 3: Enumerate devices and pick back camera
+                if (!gotBackCamera) {
+                    try {
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                        console.log('📷 Video devices:', videoDevices.map(d => d.label));
+                        
+                        // Usually back camera is index 0 on iOS
+                        const backCam = videoDevices.find(d => d.label.toLowerCase().includes('back')) || videoDevices[0];
+                        if (backCam) {
+                            backStream = await navigator.mediaDevices.getUserMedia({ 
+                                video: { deviceId: { exact: backCam.deviceId } }, 
+                                audio: false 
+                            });
+                            gotBackCamera = true;
+                            console.log('✅ Got back camera by deviceId:', backCam.label);
+                        }
+                    } catch (e3) {
+                        console.log('❌ deviceId method failed:', e3.message);
+                    }
+                }
+                
+                if (gotBackCamera && backStream) {
+                    backVideo.srcObject = backStream;
+                    
+                    // Wait for video to be ready
+                    await new Promise(resolve => {
+                        backVideo.onloadedmetadata = resolve;
+                        setTimeout(resolve, 1000); // Timeout fallback
+                    });
+                    await new Promise(r => setTimeout(r, 300)); // Extra stabilization
+                    
+                    // Capture back camera (main image)
+                    ctx.drawImage(backVideo, 0, 0, canvas.width, canvas.height);
+                    
+                    // Stop back camera
+                    backStream.getTracks().forEach(t => t.stop());
+                    backStream = null;
+                    backVideo.srcObject = null;
+                    console.log('✅ Back camera captured successfully');
+                } else {
+                    throw new Error('Could not access back camera');
+                }
             } catch (e) {
-                // If back camera fails, fill with dark background
-                ctx.fillStyle = '#1a1a1a';
+                console.error('❌ Back camera failed:', e);
+                // If back camera fails, fill with gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#2a2a2a');
+                gradient.addColorStop(1, '#1a1a1a');
+                ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#888';
-                ctx.font = '20px Inter, sans-serif';
+                ctx.fillStyle = '#666';
+                ctx.font = '48px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('📸', canvas.width/2, canvas.height/2 - 20);
-                ctx.fillText('Back camera unavailable', canvas.width/2, canvas.height/2 + 20);
+                ctx.fillText('📱', canvas.width/2, canvas.height/2 - 30);
+                ctx.font = '16px Inter, sans-serif';
+                ctx.fillText('Back camera unavailable', canvas.width/2, canvas.height/2 + 30);
             }
             
             // Step 4: Composite front camera in corner (BeReal style)
