@@ -2108,6 +2108,57 @@
         let userName = localStorage.getItem('stakeflow_user_name') || 'Anonymous';
 
         let focusOptions = { leaveApp: true, checkins: true, selfie: true };
+        
+        // Haptics helper for iOS (Capacitor) and Android (navigator.vibrate)
+        async function haptic(style = 'medium') {
+            try {
+                if (window.Capacitor?.Plugins?.Haptics) {
+                    const Haptics = window.Capacitor.Plugins.Haptics;
+                    switch(style) {
+                        case 'light':
+                            await Haptics.impact({ style: 'light' });
+                            break;
+                        case 'medium':
+                            await Haptics.impact({ style: 'medium' });
+                            break;
+                        case 'heavy':
+                            await Haptics.impact({ style: 'heavy' });
+                            break;
+                        case 'success':
+                            await Haptics.notification({ type: 'success' });
+                            break;
+                        case 'warning':
+                            await Haptics.notification({ type: 'warning' });
+                            break;
+                        case 'error':
+                            await Haptics.notification({ type: 'error' });
+                            break;
+                        case 'selection':
+                            await Haptics.selectionStart();
+                            await Haptics.selectionChanged();
+                            await Haptics.selectionEnd();
+                            break;
+                        default:
+                            await Haptics.impact({ style: 'medium' });
+                    }
+                } else if (navigator.vibrate) {
+                    // Fallback for Android/web
+                    const durations = {
+                        light: 10,
+                        medium: 25,
+                        heavy: 50,
+                        success: [30, 50, 30],
+                        warning: [50, 30, 50],
+                        error: [100, 50, 100],
+                        selection: 10
+                    };
+                    navigator.vibrate(durations[style] || 25);
+                }
+            } catch(e) {
+                console.log('Haptic error:', e);
+            }
+        }
+        
         let checkinInterval = null;
         let checkinTimeout = null;
         let checkinCountdown = null;
@@ -3024,18 +3075,18 @@
                 btn.classList.add('holding');
                 
                 // Haptic feedback at start
-                if (navigator.vibrate) navigator.vibrate(20);
+                haptic("light");
                 
                 // Continuous light haptics while holding
                 cancelHapticInterval = setInterval(() => {
-                    if (navigator.vibrate) navigator.vibrate(10);
+                    haptic("light");
                 }, 500);
                 
                 // After 3 seconds, trigger cancel
                 cancelHoldTimeout = setTimeout(() => {
                     clearInterval(cancelHapticInterval);
                     // Strong haptic on complete
-                    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+                    haptic("success");
                     btn.classList.remove('holding');
                     endSession(false, 'You gave up!');
                 }, 3000);
@@ -3192,31 +3243,32 @@
         }
 
         function getCheckinConfig(sessionMinutes) {
-            // TEST MODE: Fast check-ins for verification
+            // TEST MODE: Fast check-ins for verification (5x logo tap to enable)
             if (testMode) {
                 console.log('🧪 TEST MODE: Using fast check-in schedule (alternating tap/selfie)');
                 return { total: 6, interval: [0.15, 0.25], first: [0.1, 0.15], forceMix: true }; // 6-15 sec intervals
             }
             
-            // Returns { totalCheckins, intervalMin, intervalMax, firstCheckinMin, firstCheckinMax }
+            // Check-in timing - first check-in within 1-2 min, then spread out
+            // This keeps users engaged early and throughout the session
             if (sessionMinutes <= 15) {
-                return { total: 2, interval: [6, 7], first: [4, 5] };
+                return { total: 3, interval: [3, 5], first: [1, 2] };
             } else if (sessionMinutes <= 20) {
-                return { total: 2 + (Math.random() > 0.5 ? 1 : 0), interval: [7, 8], first: [5, 6] };
+                return { total: 4, interval: [4, 5], first: [1, 2] };
             } else if (sessionMinutes <= 25) {
-                return { total: 3, interval: [7, 8], first: [5, 6] };
+                return { total: 4, interval: [5, 6], first: [1.5, 2.5] };
             } else if (sessionMinutes <= 30) {
-                return { total: 3 + (Math.random() > 0.5 ? 1 : 0), interval: [8, 10], first: [6, 7] };
+                return { total: 5, interval: [5, 7], first: [1.5, 2.5] };
             } else if (sessionMinutes <= 45) {
-                return { total: 4 + (Math.random() > 0.5 ? 1 : 0), interval: [10, 12], first: [7, 8] };
+                return { total: 6, interval: [6, 8], first: [2, 3] };
             } else if (sessionMinutes <= 60) {
-                return { total: 5 + (Math.random() > 0.5 ? 1 : 0), interval: [10, 12], first: [8, 10] };
+                return { total: 7, interval: [7, 9], first: [2, 3] };
             } else if (sessionMinutes <= 90) {
-                return { total: 6 + (Math.random() > 0.5 ? 1 : 0), interval: [12, 15], first: [10, 12] };
+                return { total: 8, interval: [9, 12], first: [2, 4] };
             } else if (sessionMinutes <= 120) {
-                return { total: 7 + (Math.random() > 0.5 ? 1 : 0), interval: [15, 18], first: [12, 14] };
+                return { total: 10, interval: [10, 14], first: [2, 4] };
             } else {
-                return { total: 8 + Math.floor(Math.random() * 3), interval: [18, 22], first: [15, 18] };
+                return { total: 12, interval: [12, 16], first: [3, 5] };
             }
         }
 
@@ -3346,6 +3398,9 @@
             checkinActive = true;
             let countdown = CHECKIN_SECONDS;
 
+            // Strong haptic to get attention
+            haptic("warning");
+            
             document.getElementById('checkinOverlay').classList.add('active');
             document.getElementById('checkinTimer').textContent = countdown;
             startAlertLoop(); // Start repeating beeps + haptics
@@ -3354,7 +3409,7 @@
                 countdown--;
                 document.getElementById('checkinTimer').textContent = countdown;
                 // Haptic every second
-                if (navigator.vibrate) navigator.vibrate(50);
+                haptic("medium");
                 if (countdown <= 0) {
                     clearInterval(checkinCountdown);
                     stopAlertLoop();
@@ -3381,6 +3436,7 @@
             clearTimeout(checkinTimeout);
             stopAlertLoop();
             checkinActive = false;
+            haptic("success"); // Satisfying confirmation haptic
             document.getElementById('checkinOverlay').classList.remove('active');
             if (sessionActive) scheduleNextCheckin();
         }
@@ -3390,6 +3446,9 @@
             if (!sessionActive) return;
             checkinActive = true;
             let countdown = SELFIE_SECONDS;
+            
+            // Strong haptic to get attention
+            haptic("warning");
 
             try {
                 // Start both cameras - back camera (environment) for main, front (user) for corner
@@ -3430,7 +3489,7 @@
                 countdown--;
                 document.getElementById('selfieTimer').textContent = countdown;
                 // Haptic every second
-                if (navigator.vibrate) navigator.vibrate(50);
+                haptic("medium");
                 if (countdown <= 0) {
                     clearInterval(checkinCountdown);
                     stopAlertLoop();
@@ -3549,7 +3608,7 @@
             } catch(e) {}
             
             // Haptic
-            if (navigator.vibrate) navigator.vibrate(200);
+            haptic("heavy");
         }
         
         function startAlertLoop() {
@@ -3664,6 +3723,7 @@
 
             // Generate share card for wins
             if (won && !isDraw) {
+                haptic("success");
                 launchConfetti();
                 generateShareCard(timeString, winAmount, currentChallenge?.type || 'solo');
             } else {
