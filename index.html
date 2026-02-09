@@ -1976,7 +1976,42 @@
             if (focusOptions.leaveApp) {
                 document.addEventListener('visibilitychange', handleVisibilityChange);
             }
-            startCheckins();
+            
+            // Simple reliable check-in system
+            if (focusOptions.checkins || focusOptions.selfie) {
+                const sessionMins = selectedTime || 25;
+                
+                // First check-in: 1-2 minutes in
+                const firstDelay = (60 + Math.random() * 60) * 1000;
+                setTimeout(() => {
+                    if (sessionActive && !checkinActive) {
+                        if (focusOptions.selfie && Math.random() > 0.5) {
+                            triggerSelfieCheckin();
+                        } else {
+                            triggerCheckin();
+                        }
+                    }
+                }, firstDelay);
+                console.log(`📍 First check-in in ${Math.round(firstDelay/1000)}s`);
+                
+                // Schedule more check-ins based on session length
+                const numCheckins = Math.max(2, Math.floor(sessionMins / 7));
+                const interval = (sessionMins * 60 * 1000) / (numCheckins + 1);
+                
+                for (let i = 2; i <= numCheckins; i++) {
+                    const delay = interval * i + (Math.random() - 0.5) * 60000; // ±30 sec randomness
+                    setTimeout(() => {
+                        if (sessionActive && !checkinActive) {
+                            if (focusOptions.selfie && Math.random() > 0.5) {
+                                triggerSelfieCheckin();
+                            } else {
+                                triggerCheckin();
+                            }
+                        }
+                    }, delay);
+                    console.log(`📍 Check-in ${i} in ${Math.round(delay/1000)}s`);
+                }
+            }
         }
 
         function timerTick() {
