@@ -1881,7 +1881,7 @@
 
     <!-- Selfie Check-in Modal (BeReal Style) -->
     <div class="selfie-overlay" id="selfieOverlay">
-        <div class="selfie-title">📸 BEREAL CHECK!</div>
+        <div class="selfie-title">📸 PROVE YOU'RE WORKING!</div>
         <div class="selfie-timer" id="selfieTimer">30</div>
         <div class="bereal-container">
             <div class="bereal-back">
@@ -1892,7 +1892,7 @@
             </div>
         </div>
         <button class="selfie-btn" onclick="captureSelfie()">📷</button>
-        <div class="checkin-message">Show what you're working on!</div>
+        <div class="checkin-message">Quick selfie to prove you're focused!</div>
     </div>
 
     <!-- Leaderboard Modal -->
@@ -3480,34 +3480,20 @@
             haptic("warning");
 
             try {
-                // Start both cameras - back camera (environment) for main, front (user) for corner
-                backStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: { ideal: 'environment' } }, 
+                // Use front camera (selfie) - iOS can only use one camera at a time
+                frontStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 960 } }, 
                     audio: false 
                 });
-                document.getElementById('backVideo').srcObject = backStream;
-                
-                // Try to get front camera too
-                try {
-                    frontStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'user' }, 
-                        audio: false 
-                    });
-                    document.getElementById('frontVideo').srcObject = frontStream;
-                } catch (e) {
-                    console.log('Front camera not available, using back only');
-                }
+                document.getElementById('frontVideo').srcObject = frontStream;
+                // Hide the back camera view since we're only using front
+                document.querySelector('.bereal-back').style.display = 'none';
+                document.querySelector('.bereal-front').style.cssText = 'position:relative;top:0;left:0;width:100%;height:100%;border:none;border-radius:20px;';
             } catch (e) {
                 console.error('Camera error:', e);
-                // Fall back to any available camera
-                try {
-                    backStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                    document.getElementById('backVideo').srcObject = backStream;
-                } catch (e2) {
-                    console.error('No camera available:', e2);
-                    triggerCheckin(); // Fall back to tap check-in
-                    return;
-                }
+                // Fall back to tap check-in if camera fails
+                triggerCheckin();
+                return;
             }
 
             document.getElementById('selfieOverlay').classList.add('active');
@@ -3523,7 +3509,7 @@
                     clearInterval(checkinCountdown);
                     stopAlertLoop();
                     closeSelfieOverlay();
-                    endSession(false, 'You missed the BeReal check!');
+                    endSession(false, 'You missed the check-in!');
                 }
             }, 1000);
 
@@ -3532,7 +3518,7 @@
                     clearInterval(checkinCountdown);
                     stopAlertLoop();
                     closeSelfieOverlay();
-                    endSession(false, 'You missed the BeReal check!');
+                    endSession(false, 'You missed the check-in!');
                 }
             }, (SELFIE_SECONDS * 1000) + 500);
         }
@@ -3540,41 +3526,21 @@
         async function captureSelfie() {
             if (!checkinActive) return;
 
-            // Capture both cameras and composite them BeReal-style
-            const backVideo = document.getElementById('backVideo');
+            // Capture front camera selfie
             const frontVideo = document.getElementById('frontVideo');
             
             const canvas = document.createElement('canvas');
-            canvas.width = 600;
-            canvas.height = 800;
+            canvas.width = 720;
+            canvas.height = 960;
             const ctx = canvas.getContext('2d');
             
-            // Draw back camera (main - what they're working on)
-            if (backVideo.srcObject) {
-                ctx.drawImage(backVideo, 0, 0, 600, 800);
-            }
-            
-            // Draw front camera (corner selfie) - mirrored
+            // Draw front camera (mirrored for natural selfie look)
             if (frontVideo.srcObject) {
-                const frontSize = { w: 150, h: 200 };
                 ctx.save();
-                ctx.translate(frontSize.w + 20, 20);
+                ctx.translate(canvas.width, 0);
                 ctx.scale(-1, 1);
-                
-                // Rounded rectangle clip
-                ctx.beginPath();
-                ctx.roundRect(0, 0, frontSize.w, frontSize.h, 15);
-                ctx.clip();
-                
-                ctx.drawImage(frontVideo, 0, 0, frontSize.w, frontSize.h);
+                ctx.drawImage(frontVideo, 0, 0, canvas.width, canvas.height);
                 ctx.restore();
-                
-                // Border for front cam
-                ctx.strokeStyle = '#0a0a0a';
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.roundRect(20, 20, frontSize.w, frontSize.h, 15);
-                ctx.stroke();
             }
             
             const imageData = canvas.toDataURL('image/jpeg', 0.85);
