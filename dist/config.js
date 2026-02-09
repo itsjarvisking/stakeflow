@@ -1,3 +1,2 @@
-// API Configuration
-// Change this URL when you deploy the backend
-window.STAKEFLOW_API = 'https://inspiration-drink-sunshine-asking.trycloudflare.com';
+// StakeFlow API Configuration
+window.STAKEFLOW_API = 'https://placement-palace-sean-islamic.trycloudflare.com';
