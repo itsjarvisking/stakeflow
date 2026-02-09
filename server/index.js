@@ -4,12 +4,14 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const Stripe = require('stripe');
-const Database = require('better-sqlite3');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const appleSignin = require('apple-signin-auth');
 const path = require('path');
 const fs = require('fs');
+
+// Use JSON database for Railway compatibility (no native deps)
+const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -42,90 +44,7 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Database setup
-const db = new Database(path.join(__dirname, 'stakeflow.db'));
-db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE,
-        password_hash TEXT,
-        apple_id TEXT UNIQUE,
-        name TEXT,
-        avatar_url TEXT,
-        balance INTEGER DEFAULT 0,
-        stripe_customer_id TEXT,
-        stripe_connect_id TEXT,
-        stripe_connect_verified INTEGER DEFAULT 0,
-        total_sessions INTEGER DEFAULT 0,
-        total_wins INTEGER DEFAULT 0,
-        total_focus_minutes INTEGER DEFAULT 0,
-        money_won INTEGER DEFAULT 0,
-        money_lost INTEGER DEFAULT 0,
-        current_streak INTEGER DEFAULT 0,
-        best_streak INTEGER DEFAULT 0,
-        last_session_date TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE TABLE IF NOT EXISTS transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT NOT NULL,
-        type TEXT NOT NULL,
-        amount INTEGER NOT NULL,
-        description TEXT,
-        challenge_id TEXT,
-        stripe_payment_id TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-    
-    CREATE TABLE IF NOT EXISTS challenges (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        creator_id TEXT NOT NULL,
-        stake_amount INTEGER NOT NULL,
-        duration_minutes INTEGER,
-        max_players INTEGER DEFAULT 2,
-        status TEXT DEFAULT 'pending',
-        winner_id TEXT,
-        started_at TEXT,
-        ended_at TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE TABLE IF NOT EXISTS challenge_players (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        challenge_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        user_name TEXT,
-        paid INTEGER DEFAULT 0,
-        ready INTEGER DEFAULT 0,
-        failed INTEGER DEFAULT 0,
-        failed_at TEXT,
-        completed INTEGER DEFAULT 0,
-        joined_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (challenge_id) REFERENCES challenges(id)
-    );
-    
-    CREATE TABLE IF NOT EXISTS selfies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        challenge_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        image_path TEXT NOT NULL,
-        captured_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        ai_roast TEXT,
-        FOREIGN KEY (challenge_id) REFERENCES challenges(id)
-    );
-`);
-
-// Add indexes
-try {
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_users_apple ON users(apple_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_players_challenge ON challenge_players(challenge_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_players_user ON challenge_players(user_id)`);
-} catch(e) {}
+// Database is now loaded from ./db.js (JSON-based for Railway compatibility)
 
 // Middleware
 app.use(cors());
