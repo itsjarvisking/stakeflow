@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: stakeflow-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    healthCheckPath: /
+    autoDeploy: true
