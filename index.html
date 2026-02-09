@@ -1265,7 +1265,7 @@
 <body>
     <div class="app">
         <header class="header">
-            <div class="logo" onclick="goHome()">
+            <div class="logo" onclick="handleLogoTap(); goHome()">
                 <img src="/logo.png" alt="StakeFlow" class="logo-img">
                 <span>StakeFlow</span>
             </div>
@@ -2266,8 +2266,31 @@
         let checkinCount = 0;
         let targetCheckins = 3;
         let checkinSchedule = [];
+        let testMode = false;
+        let logoTapCount = 0;
+        let logoTapTimer = null;
+
+        // Triple-tap logo to enable test mode (fast check-ins for testing)
+        function handleLogoTap() {
+            logoTapCount++;
+            clearTimeout(logoTapTimer);
+            logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1000);
+            
+            if (logoTapCount >= 5) {
+                testMode = !testMode;
+                logoTapCount = 0;
+                alert(testMode ? '🧪 TEST MODE ON - Check-ins every 10-15 sec!' : '✅ Test mode OFF');
+                console.log('Test mode:', testMode);
+            }
+        }
 
         function getCheckinConfig(sessionMinutes) {
+            // TEST MODE: Fast check-ins for verification
+            if (testMode) {
+                console.log('🧪 TEST MODE: Using fast check-in schedule');
+                return { total: 5, interval: [0.15, 0.25], first: [0.1, 0.15] }; // 6-15 sec intervals
+            }
+            
             // Returns { totalCheckins, intervalMin, intervalMax, firstCheckinMin, firstCheckinMax }
             if (sessionMinutes <= 15) {
                 return { total: 2, interval: [6, 7], first: [4, 5] };
