@@ -2883,6 +2883,10 @@
 
         // Navigation
         function goHome() {
+            // Block navigation entirely during active focus sessions
+            // Only way out is "Hold to Give Up" button
+            if (sessionActive) return;
+            
             window.history.pushState({}, '', '/');
             currentChallenge = null;
             challengePlayers = [];
