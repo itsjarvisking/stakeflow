@@ -2077,7 +2077,12 @@
         const STRIPE_PK = 'pk_live_51S6eN4GpCQRiCzceOx073AMt10Yb0TojcLOKcrXH9Sanrctp8CixC8t1xdxUQFKl5WyHOngfAjddRLarQ3A9MN4k00gwOXlllA';
         let stripe, elements, cardElement, paymentRequest;
         let selectedPaymentAmount = 50;
-        const API_BASE = window.location.origin;
+        
+        // Production API URL - UPDATE THIS AFTER RAILWAY DEPLOY
+        const PROD_API = 'https://stakeflow-production.up.railway.app';
+        // Use production API for native app, localhost for web dev
+        const isNativeApp = window.Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:';
+        const API_BASE = isNativeApp ? PROD_API : window.location.origin;
         const CHECKIN_SECONDS = 25;
         const SELFIE_SECONDS = 30;
         
