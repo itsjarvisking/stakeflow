@@ -2338,13 +2338,22 @@
             let currentTime = randomInRange(config.first[0], config.first[1]) * 60; // First check-in in seconds
             
             for (let i = 0; i < targetCheckins; i++) {
-                // In test mode with forceMix, alternate tap/selfie. Otherwise use normal random logic
+                // Determine if this check-in should be a selfie
                 let isSelfie;
-                if (config.forceMix && focusOptions.selfie) {
-                    isSelfie = (i % 2 === 1); // Every other one is selfie (2nd, 4th, 6th...)
+                if (!focusOptions.selfie) {
+                    // Selfie toggle OFF = always tap
+                    isSelfie = false;
+                } else if (!focusOptions.checkins) {
+                    // Only selfie enabled = always selfie
+                    isSelfie = true;
+                } else if (config.forceMix) {
+                    // Test mode: alternate tap/selfie when both enabled
+                    isSelfie = (i % 2 === 1);
                 } else {
-                    isSelfie = focusOptions.selfie && (!focusOptions.checkins || Math.random() > 0.5);
+                    // Both enabled: 50% chance
+                    isSelfie = Math.random() > 0.5;
                 }
+                console.log(`📋 Check-in ${i+1}: isSelfie=${isSelfie} (selfie toggle=${focusOptions.selfie}, checkins toggle=${focusOptions.checkins})`);
                 checkinSchedule.push({
                     time: Math.round(currentTime),
                     isSelfie: isSelfie
