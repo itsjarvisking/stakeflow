@@ -53,12 +53,14 @@ function executeSQL(sql, params, mode = 'run') {
     // INSERT INTO users
     if (sqlLower.includes('insert into users')) {
         const id = params[0];
+        // Parse which columns are being inserted
+        const hasAppleId = sqlLower.includes('apple_id');
         const user = {
             id,
             email: params[1] || null,
             password_hash: params[2] || null,
-            apple_id: params[3] || null,
-            name: params[4] || 'Anonymous',
+            apple_id: hasAppleId ? params[3] : null,
+            name: hasAppleId ? (params[4] || 'Anonymous') : (params[3] || 'Anonymous'),
             avatar_url: null,
             balance: 0,
             stripe_customer_id: null,

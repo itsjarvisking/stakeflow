@@ -2112,8 +2112,12 @@
         // Haptics helper for iOS (Capacitor) and Android (navigator.vibrate)
         async function haptic(style = 'medium') {
             try {
-                if (window.Capacitor?.Plugins?.Haptics) {
-                    const Haptics = window.Capacitor.Plugins.Haptics;
+                // Try multiple ways to access Capacitor Haptics
+                const Haptics = window.Capacitor?.Plugins?.Haptics || 
+                                window.CapacitorHaptics ||
+                                (typeof Capacitor !== 'undefined' && Capacitor.Plugins?.Haptics);
+                
+                if (Haptics && typeof Haptics.impact === 'function') {
                     switch(style) {
                         case 'light':
                             await Haptics.impact({ style: 'light' });
@@ -2808,9 +2812,14 @@
 
             try {
                 const maxPlayers = currentMode === 'friend' ? 2 : selectedPlayers;
+                const headers = { 'Content-Type': 'application/json' };
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
                 const response = await fetch(`${API_BASE}/api/challenges`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({
                         type: currentMode,
                         stake: selectedStake,
@@ -2822,6 +2831,15 @@
                 });
 
                 const data = await response.json();
+                
+                if (data.error) {
+                    if (data.error === 'Insufficient balance') {
+                        alert(`Not enough balance! You have $${data.balance || 0}. Add funds in your wallet first.`);
+                    } else {
+                        alert(data.error);
+                    }
+                    return;
+                }
                 currentChallenge = { ...data, type: currentMode, stake_amount: selectedStake * 100, duration_minutes: selectedTime, max_players: maxPlayers };
                 socket.emit('join:challenge', data.challengeId);
 
