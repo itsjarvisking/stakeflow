@@ -2119,6 +2119,7 @@
             
             console.log('🎯 Starting check-ins for', sessionMinutes, 'min session');
             console.log('🎯 Config:', config);
+            console.log('🎯 focusOptions:', focusOptions);
             
             // Build the schedule - times are ABSOLUTE from session start
             let currentTime = randomInRange(config.first[0], config.first[1]) * 60; // First check-in in seconds
@@ -2150,6 +2151,13 @@
             checkinSchedule.forEach((c, i) => {
                 console.log(`   ${i+1}. At ${Math.round(c.time)}s (${Math.round(c.time/60)}min) - ${c.isSelfie ? 'selfie' : 'tap'}`);
             });
+            
+            // FOR TESTING: Add an early check-in at 10 seconds
+            if (checkinSchedule.length > 0 && checkinSchedule[0].time > 15) {
+                checkinSchedule.unshift({ time: 10, isSelfie: false });
+                targetCheckins = checkinSchedule.length;
+                console.log('🧪 TEST: Added early check-in at 10 seconds');
+            }
             
             // Start scheduling
             scheduleNextCheckin();

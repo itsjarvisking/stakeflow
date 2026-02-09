@@ -3,9 +3,13 @@
   "appName": "StakeFlow",
   "webDir": "dist",
   "ios": {
-    "contentInset": "automatic"
+    "contentInset": "automatic",
+    "backgroundColor": "#0a0a0a",
+    "scrollEnabled": false
   },
   "android": {
-    "allowMixedContent": true
-  }
+    "allowMixedContent": true,
+    "backgroundColor": "#0a0a0a"
+  },
+  "backgroundColor": "#0a0a0a"
 }
