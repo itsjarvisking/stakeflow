@@ -399,10 +399,11 @@ app.post('/api/wallet/setup-withdraw', authMiddleware, async (req, res) => {
         }
         
         // Create account link for onboarding
+        const baseUrl = req.headers.origin || 'https://stakeflow-gggp.onrender.com';
         const accountLink = await stripe.accountLinks.create({
             account: connectId,
-            refresh_url: `${req.headers.origin || 'https://stakeflow.work'}/wallet?refresh=true`,
-            return_url: `${req.headers.origin || 'https://stakeflow.work'}/wallet?success=true`,
+            refresh_url: `${baseUrl}/wallet?refresh=true`,
+            return_url: `${baseUrl}/wallet?success=true`,
             type: 'account_onboarding'
         });
         
