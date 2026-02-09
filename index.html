@@ -2287,8 +2287,8 @@
         function getCheckinConfig(sessionMinutes) {
             // TEST MODE: Fast check-ins for verification
             if (testMode) {
-                console.log('🧪 TEST MODE: Using fast check-in schedule');
-                return { total: 5, interval: [0.15, 0.25], first: [0.1, 0.15] }; // 6-15 sec intervals
+                console.log('🧪 TEST MODE: Using fast check-in schedule (alternating tap/selfie)');
+                return { total: 6, interval: [0.15, 0.25], first: [0.1, 0.15], forceMix: true }; // 6-15 sec intervals
             }
             
             // Returns { totalCheckins, intervalMin, intervalMax, firstCheckinMin, firstCheckinMax }
@@ -2331,15 +2331,23 @@
             
             console.log('🎯 Starting check-ins for', sessionMinutes, 'min session');
             console.log('🎯 Config:', config);
-            console.log('🎯 focusOptions:', focusOptions);
+            console.log('🎯 focusOptions:', JSON.stringify(focusOptions));
+            console.log('🎯 Selfie enabled:', focusOptions.selfie, '| Checkins enabled:', focusOptions.checkins);
             
             // Build the schedule - times are ABSOLUTE from session start
             let currentTime = randomInRange(config.first[0], config.first[1]) * 60; // First check-in in seconds
             
             for (let i = 0; i < targetCheckins; i++) {
+                // In test mode with forceMix, alternate tap/selfie. Otherwise use normal random logic
+                let isSelfie;
+                if (config.forceMix && focusOptions.selfie) {
+                    isSelfie = (i % 2 === 1); // Every other one is selfie (2nd, 4th, 6th...)
+                } else {
+                    isSelfie = focusOptions.selfie && (!focusOptions.checkins || Math.random() > 0.5);
+                }
                 checkinSchedule.push({
                     time: Math.round(currentTime),
-                    isSelfie: focusOptions.selfie && (!focusOptions.checkins || Math.random() > 0.5)
+                    isSelfie: isSelfie
                 });
                 
                 // Add interval for next one
@@ -2401,12 +2409,14 @@
                     console.log('☕ Check-in blocked - on break');
                     return;
                 }
-                console.log(`🔔 Triggering check-in ${checkinCount + 1}!`);
+                console.log(`🔔 Triggering check-in ${checkinCount + 1}! isSelfie=${nextCheckin.isSelfie}`);
                 if (sessionActive && !checkinActive) {
                     checkinCount++;
                     if (nextCheckin.isSelfie) {
+                        console.log('📸 Calling triggerSelfieCheckin...');
                         triggerSelfieCheckin();
                     } else {
+                        console.log('👆 Calling triggerCheckin...');
                         triggerCheckin();
                     }
                 } else {
@@ -2460,6 +2470,7 @@
         }
 
         async function triggerSelfieCheckin() {
+            console.log('📸 SELFIE CHECK-IN TRIGGERED!');
             if (!sessionActive) return;
             checkinActive = true;
             let countdown = SELFIE_SECONDS;
