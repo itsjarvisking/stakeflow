@@ -20,7 +20,10 @@ const io = new Server(server, { cors: { origin: '*' } });
 // Config
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'stakeflow_secret_change_in_production';
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+if (!process.env.STRIPE_SECRET_KEY) {
+    console.error('⚠️ WARNING: STRIPE_SECRET_KEY not set!');
+}
 const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || 'com.stakeflow.app';
 
 // Tiered platform fees
