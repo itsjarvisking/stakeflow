@@ -1320,7 +1320,7 @@
                                 <span class="focus-option-desc">Prove you're there with a photo</span>
                             </div>
                         </div>
-                        <div class="toggle" id="toggleSelfie" onclick="toggleOption('selfie')"></div>
+                        <div class="toggle active" id="toggleSelfie" onclick="toggleOption('selfie')"></div>
                     </div>
                 </div>
 
@@ -1604,7 +1604,7 @@
         let userName = localStorage.getItem('stakeflow_user_name') || prompt('Enter your name:') || 'Anonymous';
         localStorage.setItem('stakeflow_user_name', userName);
 
-        let focusOptions = { leaveApp: true, checkins: true, selfie: false };
+        let focusOptions = { leaveApp: true, checkins: true, selfie: true };
         let checkinInterval = null;
         let checkinTimeout = null;
         let checkinCountdown = null;
@@ -1977,14 +1977,6 @@
                 document.addEventListener('visibilitychange', handleVisibilityChange);
             }
             startCheckins();
-            
-            // FORCE a test check-in at 8 seconds no matter what
-            setTimeout(() => {
-                console.log('🚨 FORCED CHECK-IN FIRING');
-                if (sessionActive && !checkinActive) {
-                    triggerCheckin();
-                }
-            }, 8000);
         }
 
         function timerTick() {
@@ -2158,13 +2150,6 @@
                 console.log(`   ${i+1}. At ${Math.round(c.time)}s (${Math.round(c.time/60)}min) - ${c.isSelfie ? 'selfie' : 'tap'}`);
             });
             
-            // FOR TESTING: Add an early check-in at 10 seconds
-            if (checkinSchedule.length > 0 && checkinSchedule[0].time > 15) {
-                checkinSchedule.unshift({ time: 10, isSelfie: false });
-                targetCheckins = checkinSchedule.length;
-                console.log('🧪 TEST: Added early check-in at 10 seconds');
-            }
-            
             // Start scheduling
             scheduleNextCheckin();
         }
@@ -2212,13 +2197,16 @@
 
             document.getElementById('checkinOverlay').classList.add('active');
             document.getElementById('checkinTimer').textContent = countdown;
-            playAlert();
+            startAlertLoop(); // Start repeating beeps + haptics
 
             checkinCountdown = setInterval(() => {
                 countdown--;
                 document.getElementById('checkinTimer').textContent = countdown;
+                // Haptic every second
+                if (navigator.vibrate) navigator.vibrate(50);
                 if (countdown <= 0) {
                     clearInterval(checkinCountdown);
+                    stopAlertLoop();
                     document.getElementById('checkinOverlay').classList.remove('active');
                     checkinActive = false;
                     endSession(false, 'You missed the check-in!');
@@ -2228,6 +2216,7 @@
             checkinTimeout = setTimeout(() => {
                 if (checkinActive) {
                     clearInterval(checkinCountdown);
+                    stopAlertLoop();
                     document.getElementById('checkinOverlay').classList.remove('active');
                     checkinActive = false;
                     endSession(false, 'You missed the check-in!');
@@ -2239,6 +2228,7 @@
             if (!checkinActive) return;
             clearInterval(checkinCountdown);
             clearTimeout(checkinTimeout);
+            stopAlertLoop();
             checkinActive = false;
             document.getElementById('checkinOverlay').classList.remove('active');
             if (sessionActive) scheduleNextCheckin();
@@ -2282,13 +2272,16 @@
 
             document.getElementById('selfieOverlay').classList.add('active');
             document.getElementById('selfieTimer').textContent = countdown;
-            playAlert();
+            startAlertLoop(); // Repeating beeps + haptics
 
             checkinCountdown = setInterval(() => {
                 countdown--;
                 document.getElementById('selfieTimer').textContent = countdown;
+                // Haptic every second
+                if (navigator.vibrate) navigator.vibrate(50);
                 if (countdown <= 0) {
                     clearInterval(checkinCountdown);
+                    stopAlertLoop();
                     closeSelfieOverlay();
                     endSession(false, 'You missed the BeReal check!');
                 }
@@ -2297,6 +2290,7 @@
             checkinTimeout = setTimeout(() => {
                 if (checkinActive) {
                     clearInterval(checkinCountdown);
+                    stopAlertLoop();
                     closeSelfieOverlay();
                     endSession(false, 'You missed the BeReal check!');
                 }
@@ -2386,18 +2380,40 @@
             closeSelfieOverlay();
         }
 
+        let alertInterval = null;
+        
         function playAlert() {
+            // Play beep
             try {
                 const ctx = new AudioContext();
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.connect(gain);
                 gain.connect(ctx.destination);
-                osc.frequency.value = 800;
-                gain.gain.value = 0.3;
+                osc.frequency.value = 880;
+                gain.gain.value = 0.4;
                 osc.start();
-                setTimeout(() => osc.stop(), 200);
+                setTimeout(() => osc.stop(), 250);
             } catch(e) {}
+            
+            // Haptic
+            if (navigator.vibrate) navigator.vibrate(200);
+        }
+        
+        function startAlertLoop() {
+            playAlert(); // Play immediately
+            alertInterval = setInterval(() => {
+                if (checkinActive) {
+                    playAlert();
+                } else {
+                    clearInterval(alertInterval);
+                }
+            }, 3000); // Beep every 3 seconds
+        }
+        
+        function stopAlertLoop() {
+            clearInterval(alertInterval);
+            alertInterval = null;
         }
 
         async function endSession(won, reason = '') {
