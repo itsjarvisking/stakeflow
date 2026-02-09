@@ -69,13 +69,11 @@
         }
 
         .header {
-            padding: 12px 20px;
-            padding-top: max(12px, calc(var(--safe-top) + 8px));
+            padding: 10px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border);
-            /* Extra space for dynamic island */
             margin-top: 0;
         }
 
@@ -1979,6 +1977,14 @@
                 document.addEventListener('visibilitychange', handleVisibilityChange);
             }
             startCheckins();
+            
+            // FORCE a test check-in at 8 seconds no matter what
+            setTimeout(() => {
+                console.log('🚨 FORCED CHECK-IN FIRING');
+                if (sessionActive && !checkinActive) {
+                    triggerCheckin();
+                }
+            }, 8000);
         }
 
         function timerTick() {
