@@ -1530,7 +1530,7 @@
 <body>
     <div class="app">
         <header class="header">
-            <div class="logo" onclick="handleLogoTap(); goHome()">
+            <div class="logo" onclick="handleLogoTap(); goHome()" ontouchstart="handleLogoDown()" ontouchend="handleLogoUp()" onmousedown="handleLogoDown()" onmouseup="handleLogoUp()">
                 <img src="/logo.png" alt="StakeFlow" class="logo-img">
                 <span>StakeFlow</span>
             </div>
@@ -3237,9 +3237,23 @@
             if (logoTapCount >= 5) {
                 testMode = !testMode;
                 logoTapCount = 0;
-                alert(testMode ? '🧪 TEST MODE ON - Check-ins every 10-15 sec!' : '✅ Test mode OFF');
+                haptic("success");
+                alert(testMode ? '🧪 TEST MODE ON\n\nCheck-ins every 10-15 sec!\nAlternates between tap & selfie.' : '✅ Test mode OFF');
                 console.log('Test mode:', testMode);
             }
+        }
+        
+        // Long-press logo for 2 sec also enables test mode
+        let logoLongPress = null;
+        function handleLogoDown() {
+            logoLongPress = setTimeout(() => {
+                testMode = !testMode;
+                haptic("success");
+                alert(testMode ? '🧪 TEST MODE ON\n\nCheck-ins every 10-15 sec!\nAlternates between tap & selfie.' : '✅ Test mode OFF');
+            }, 2000);
+        }
+        function handleLogoUp() {
+            clearTimeout(logoLongPress);
         }
 
         function getCheckinConfig(sessionMinutes) {
