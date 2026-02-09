@@ -3313,20 +3313,20 @@
             for (let i = 0; i < targetCheckins; i++) {
                 // Determine if this check-in should be a selfie
                 let isSelfie;
-                if (!focusOptions.selfie) {
+                if (config.forceMix) {
+                    // TEST MODE: Force alternate tap/selfie regardless of UI toggles
+                    isSelfie = (i % 2 === 1);
+                } else if (!focusOptions.selfie) {
                     // Selfie toggle OFF = always tap
                     isSelfie = false;
                 } else if (!focusOptions.checkins) {
                     // Only selfie enabled = always selfie
                     isSelfie = true;
-                } else if (config.forceMix) {
-                    // Test mode: alternate tap/selfie when both enabled
-                    isSelfie = (i % 2 === 1);
                 } else {
                     // Both enabled: 50% chance
                     isSelfie = Math.random() > 0.5;
                 }
-                console.log(`📋 Check-in ${i+1}: isSelfie=${isSelfie} (selfie toggle=${focusOptions.selfie}, checkins toggle=${focusOptions.checkins})`);
+                console.log(`📋 Check-in ${i+1}: isSelfie=${isSelfie} (testMode=${testMode}, forceMix=${config.forceMix})`);
                 checkinSchedule.push({
                     time: Math.round(currentTime),
                     isSelfie: isSelfie
