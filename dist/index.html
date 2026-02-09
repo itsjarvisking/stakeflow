@@ -1260,6 +1260,270 @@
 
         /* Hide time section for royale */
         .time-section.hidden { display: none; }
+
+        /* Auth Screens */
+        .auth-screen {
+            justify-content: center;
+            align-items: center;
+            gap: 24px;
+            padding: 24px;
+        }
+
+        .auth-logo {
+            font-size: 48px;
+            margin-bottom: 8px;
+        }
+
+        .auth-title {
+            font-size: 28px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        .auth-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 280px;
+        }
+
+        .auth-form {
+            width: 100%;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .auth-input {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 15px;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .auth-input:focus {
+            border-color: var(--accent);
+        }
+
+        .auth-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .auth-btn {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--bg-primary);
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .auth-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .apple-btn {
+            background: white;
+            color: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .apple-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-tertiary);
+            font-size: 12px;
+            margin: 8px 0;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .auth-switch {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .auth-switch a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-error {
+            background: var(--danger-dim);
+            border: 1px solid var(--danger);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 13px;
+            color: var(--danger);
+            text-align: center;
+        }
+
+        /* Wallet */
+        .wallet-btn {
+            background: linear-gradient(135deg, var(--accent-dim), rgba(0, 212, 255, 0.1));
+            border: 1px solid var(--accent);
+            padding: 6px 12px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .wallet-balance {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .wallet-screen {
+            padding: 20px;
+        }
+
+        .wallet-card {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .wallet-card-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .wallet-card-amount {
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--accent);
+            margin: 8px 0;
+        }
+
+        .wallet-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .wallet-action-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .wallet-action-btn.add {
+            background: linear-gradient(135deg, var(--accent), #00cc6a);
+            color: var(--bg-primary);
+        }
+
+        .wallet-action-btn.withdraw {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .transaction-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .transaction-item {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .transaction-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .transaction-desc {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .transaction-date {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .transaction-amount {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .transaction-amount.positive {
+            color: var(--accent);
+        }
+
+        .transaction-amount.negative {
+            color: var(--danger);
+        }
+
+        /* Add funds modal */
+        .amount-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .amount-option {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .amount-option.selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
     </style>
 </head>
 <body>
@@ -1270,12 +1534,68 @@
                 <span>StakeFlow</span>
             </div>
             <div class="header-right">
+                <div class="wallet-btn" id="walletBtn" onclick="openWallet()" style="display: none;">
+                    <span>💰</span>
+                    <span class="wallet-balance" id="headerBalance">$0</span>
+                </div>
                 <button class="header-btn" onclick="openLeaderboard()">🏆</button>
-                <button class="header-btn" onclick="openStats()">📊</button>
+                <button class="header-btn" id="profileBtn" onclick="openProfile()">👤</button>
             </div>
         </header>
 
         <main class="main">
+            <!-- Auth Screen -->
+            <div class="screen auth-screen" id="authScreen">
+                <div class="auth-logo">🎯</div>
+                <div class="auth-title">StakeFlow</div>
+                <div class="auth-subtitle">Focus with real stakes. Win money or lose it trying.</div>
+                
+                <div class="auth-form" id="authForm">
+                    <div class="auth-error" id="authError" style="display: none;"></div>
+                    
+                    <button class="auth-btn apple-btn" onclick="signInWithApple()">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+                        Sign in with Apple
+                    </button>
+                    
+                    <div class="auth-divider">or</div>
+                    
+                    <input type="text" class="auth-input" id="authName" placeholder="Name" style="display: none;">
+                    <input type="email" class="auth-input" id="authEmail" placeholder="Email">
+                    <input type="password" class="auth-input" id="authPassword" placeholder="Password">
+                    
+                    <button class="auth-btn" id="authSubmitBtn" onclick="submitAuth()">Sign In</button>
+                    
+                    <div class="auth-switch" id="authSwitch">
+                        Don't have an account? <a href="#" onclick="toggleAuthMode(event)">Sign Up</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wallet Screen -->
+            <div class="screen wallet-screen" id="walletScreen">
+                <div class="wallet-card">
+                    <div class="wallet-card-label">Available Balance</div>
+                    <div class="wallet-card-amount" id="walletBalance">$0.00</div>
+                </div>
+                
+                <div class="wallet-actions">
+                    <button class="wallet-action-btn add" onclick="openAddFunds()">
+                        <span>💳</span> Add Funds
+                    </button>
+                    <button class="wallet-action-btn withdraw" onclick="openWithdraw()">
+                        <span>🏦</span> Withdraw
+                    </button>
+                </div>
+                
+                <div class="section-title">Recent Transactions</div>
+                <div class="transaction-list" id="transactionList">
+                    <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
+                        No transactions yet
+                    </div>
+                </div>
+            </div>
+
             <!-- Setup Screen -->
             <div class="screen setup-screen active" id="setupScreen">
                 <div class="section-title">Challenge Mode</div>
@@ -1686,9 +2006,15 @@
         let remainingSeconds = 0;
         let sessionActive = false;
         let sessionStartTime = null;
+        
+        // Auth state
+        let authToken = localStorage.getItem('stakeflow_token');
+        let currentUser = null;
+        let isAuthMode = 'login'; // 'login' or 'signup'
+        
+        // Legacy fallback
         let userId = localStorage.getItem('stakeflow_user_id') || generateUserId();
-        let userName = localStorage.getItem('stakeflow_user_name') || prompt('Enter your name:') || 'Anonymous';
-        localStorage.setItem('stakeflow_user_name', userName);
+        let userName = localStorage.getItem('stakeflow_user_name') || 'Anonymous';
 
         let focusOptions = { leaveApp: true, checkins: true, selfie: true };
         let checkinInterval = null;
@@ -1706,11 +2032,243 @@
         }
 
         function init() {
+            // Check if we have a token
+            if (authToken) {
+                validateToken();
+            } else {
+                showAuthScreen();
+            }
+            
             const path = window.location.pathname;
             const match = path.match(/\/challenge\/([A-Z0-9]+)/i);
             if (match) loadChallenge(match[1]);
             connectSocket();
+        }
+        
+        // ==================
+        // AUTH FUNCTIONS
+        // ==================
+        
+        async function validateToken() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user;
+                    userId = currentUser.id;
+                    userName = currentUser.name;
+                    onAuthSuccess();
+                } else {
+                    localStorage.removeItem('stakeflow_token');
+                    authToken = null;
+                    showAuthScreen();
+                }
+            } catch (e) {
+                console.error('Token validation error:', e);
+                showAuthScreen();
+            }
+        }
+        
+        function showAuthScreen() {
+            showScreen('authScreen');
+            document.querySelector('.header').style.display = 'none';
+        }
+        
+        function onAuthSuccess() {
+            document.querySelector('.header').style.display = 'flex';
+            document.getElementById('walletBtn').style.display = 'flex';
+            updateHeaderBalance();
+            showScreen('setupScreen');
             updateUI();
+        }
+        
+        function toggleAuthMode(e) {
+            e.preventDefault();
+            isAuthMode = isAuthMode === 'login' ? 'signup' : 'login';
+            
+            const nameInput = document.getElementById('authName');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const switchText = document.getElementById('authSwitch');
+            
+            if (isAuthMode === 'signup') {
+                nameInput.style.display = 'block';
+                submitBtn.textContent = 'Create Account';
+                switchText.innerHTML = 'Already have an account? <a href="#" onclick="toggleAuthMode(event)">Sign In</a>';
+            } else {
+                nameInput.style.display = 'none';
+                submitBtn.textContent = 'Sign In';
+                switchText.innerHTML = 'Don\'t have an account? <a href="#" onclick="toggleAuthMode(event)">Sign Up</a>';
+            }
+            
+            document.getElementById('authError').style.display = 'none';
+        }
+        
+        async function submitAuth() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const name = document.getElementById('authName').value;
+            const errorEl = document.getElementById('authError');
+            
+            if (!email || !password) {
+                errorEl.textContent = 'Please fill in all fields';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const endpoint = isAuthMode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
+                const body = isAuthMode === 'signup' ? { email, password, name } : { email, password };
+                
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    errorEl.textContent = data.error;
+                    errorEl.style.display = 'block';
+                    return;
+                }
+                
+                // Success
+                authToken = data.token;
+                currentUser = data.user;
+                userId = currentUser.id;
+                userName = currentUser.name;
+                localStorage.setItem('stakeflow_token', authToken);
+                
+                onAuthSuccess();
+            } catch (e) {
+                errorEl.textContent = 'Connection error. Please try again.';
+                errorEl.style.display = 'block';
+            }
+        }
+        
+        async function signInWithApple() {
+            // For native iOS, use Capacitor Sign in with Apple plugin
+            if (window.Capacitor?.Plugins?.SignInWithApple) {
+                try {
+                    const result = await Capacitor.Plugins.SignInWithApple.authorize();
+                    const response = await fetch(`${API_BASE}/api/auth/apple`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            identityToken: result.identityToken,
+                            user: result.user
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.token) {
+                        authToken = data.token;
+                        currentUser = data.user;
+                        userId = currentUser.id;
+                        userName = currentUser.name;
+                        localStorage.setItem('stakeflow_token', authToken);
+                        onAuthSuccess();
+                    }
+                } catch (e) {
+                    console.error('Apple sign in error:', e);
+                    alert('Apple Sign In failed. Please try email.');
+                }
+            } else {
+                // Web fallback - show message
+                alert('Apple Sign In requires the iOS app. Please use email for now.');
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('stakeflow_token');
+            authToken = null;
+            currentUser = null;
+            showAuthScreen();
+        }
+        
+        // ==================
+        // WALLET FUNCTIONS
+        // ==================
+        
+        function updateHeaderBalance() {
+            if (currentUser) {
+                document.getElementById('headerBalance').textContent = '$' + (currentUser.balance || 0).toFixed(0);
+            }
+        }
+        
+        async function openWallet() {
+            showScreen('walletScreen');
+            await loadWallet();
+        }
+        
+        async function loadWallet() {
+            try {
+                const response = await fetch(`${API_BASE}/api/wallet`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                
+                document.getElementById('walletBalance').textContent = '$' + data.balance.toFixed(2);
+                currentUser.balance = data.balance;
+                updateHeaderBalance();
+                
+                const listEl = document.getElementById('transactionList');
+                if (data.transactions && data.transactions.length > 0) {
+                    listEl.innerHTML = data.transactions.map(t => {
+                        const isPositive = t.amount > 0;
+                        const date = new Date(t.created_at).toLocaleDateString();
+                        return `
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-desc">${t.description}</div>
+                                    <div class="transaction-date">${date}</div>
+                                </div>
+                                <div class="transaction-amount ${isPositive ? 'positive' : 'negative'}">
+                                    ${isPositive ? '+' : ''}$${Math.abs(t.amount).toFixed(2)}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    listEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No transactions yet</div>';
+                }
+            } catch (e) {
+                console.error('Load wallet error:', e);
+            }
+        }
+        
+        function openAddFunds() {
+            // For now, show a simple alert - Stripe integration needs frontend setup
+            const amount = prompt('Enter amount to add ($5 - $500):');
+            if (amount && !isNaN(amount) && parseFloat(amount) >= 5) {
+                alert('Stripe payment integration coming soon! For testing, funds will be added.');
+                // TODO: Implement Stripe Elements payment form
+            }
+        }
+        
+        function openWithdraw() {
+            if (!currentUser?.hasStripeConnect) {
+                alert('You need to set up withdrawals first. This will open Stripe to verify your identity.');
+                // TODO: Implement Stripe Connect onboarding
+                return;
+            }
+            const amount = prompt('Enter amount to withdraw ($10 minimum):');
+            if (amount && !isNaN(amount) && parseFloat(amount) >= 10) {
+                // TODO: Implement withdrawal
+                alert('Withdrawal feature coming soon!');
+            }
+        }
+        
+        function openProfile() {
+            if (currentUser) {
+                if (confirm(`Logged in as ${currentUser.name}\n\nLog out?`)) {
+                    logout();
+                }
+            } else {
+                showAuthScreen();
+            }
         }
 
         function connectSocket() {
