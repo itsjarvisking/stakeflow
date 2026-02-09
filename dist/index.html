@@ -638,6 +638,76 @@
 
         .timer-stake { font-size: 24px; font-weight: 700; color: var(--accent); }
 
+        /* Break system */
+        .break-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0;
+        }
+
+        .break-btn {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .break-btn:hover { border-color: var(--accent-secondary); }
+        .break-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .break-icon { font-size: 18px; }
+        .break-count { font-size: 12px; color: var(--text-secondary); }
+
+        .break-active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(168, 85, 247, 0.15));
+            border: 1px solid var(--accent-secondary);
+            border-radius: 14px;
+            padding: 14px 24px;
+        }
+
+        .break-shield { font-size: 32px; animation: shield-pulse 2s ease-in-out infinite; }
+
+        @keyframes shield-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .break-progress {
+            width: 150px;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .break-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-secondary), var(--accent-purple));
+            border-radius: 4px;
+            width: 100%;
+            transition: width 0.5s linear;
+        }
+
+        .break-message {
+            font-size: 12px;
+            color: var(--accent-secondary);
+            font-weight: 600;
+        }
+
         .active-players {
             display: flex;
             flex-wrap: wrap;
@@ -1413,6 +1483,22 @@
                 <div class="timer-display" id="timerDisplay">25:00</div>
                 <div class="timer-stake" id="timerStake">$10 at stake</div>
                 
+                <!-- Break button for 60+ min sessions -->
+                <div class="break-section" id="breakSection" style="display: none;">
+                    <button class="break-btn" id="breakBtn" onclick="takeBreak()">
+                        <span class="break-icon">☕</span>
+                        <span class="break-text">Take Break</span>
+                        <span class="break-count" id="breakCount">(2 left)</span>
+                    </button>
+                    <div class="break-active" id="breakActive" style="display: none;">
+                        <div class="break-shield">🛡️</div>
+                        <div class="break-progress">
+                            <div class="break-fill" id="breakFill"></div>
+                        </div>
+                        <div class="break-message">Break time - no check-ins for 5 min</div>
+                    </div>
+                </div>
+                
                 <div class="active-players" id="activePlayers"></div>
 
                 <div class="timer-message">
@@ -1977,41 +2063,11 @@
                 document.addEventListener('visibilitychange', handleVisibilityChange);
             }
             
-            // Simple reliable check-in system
-            if (focusOptions.checkins || focusOptions.selfie) {
-                const sessionMins = selectedTime || 25;
-                
-                // First check-in: 1-2 minutes in
-                const firstDelay = (60 + Math.random() * 60) * 1000;
-                setTimeout(() => {
-                    if (sessionActive && !checkinActive) {
-                        if (focusOptions.selfie && Math.random() > 0.5) {
-                            triggerSelfieCheckin();
-                        } else {
-                            triggerCheckin();
-                        }
-                    }
-                }, firstDelay);
-                console.log(`📍 First check-in in ${Math.round(firstDelay/1000)}s`);
-                
-                // Schedule more check-ins based on session length
-                const numCheckins = Math.max(2, Math.floor(sessionMins / 7));
-                const interval = (sessionMins * 60 * 1000) / (numCheckins + 1);
-                
-                for (let i = 2; i <= numCheckins; i++) {
-                    const delay = interval * i + (Math.random() - 0.5) * 60000; // ±30 sec randomness
-                    setTimeout(() => {
-                        if (sessionActive && !checkinActive) {
-                            if (focusOptions.selfie && Math.random() > 0.5) {
-                                triggerSelfieCheckin();
-                            } else {
-                                triggerCheckin();
-                            }
-                        }
-                    }, delay);
-                    console.log(`📍 Check-in ${i} in ${Math.round(delay/1000)}s`);
-                }
-            }
+            // Use the proper check-in system
+            startCheckins();
+            
+            // Initialize break system for long sessions
+            initBreakSystem();
         }
 
         function timerTick() {
@@ -2106,6 +2162,106 @@
             if (confirm('Are you sure? You will lose your stake!')) endSession(false, 'You gave up!');
         }
 
+        // Break system
+        let breakCount = 0;
+        let maxBreaks = 0;
+        let onBreak = false;
+        let breakTimeout = null;
+        let breakStartTime = null;
+        const BREAK_DURATION = 5 * 60 * 1000; // 5 minutes in ms
+
+        function initBreakSystem() {
+            const sessionMins = selectedTime || 25;
+            
+            // Determine number of breaks based on session length
+            if (sessionMins >= 120) {
+                maxBreaks = 3;
+            } else if (sessionMins >= 60) {
+                maxBreaks = 2;
+            } else {
+                maxBreaks = 0;
+            }
+            
+            breakCount = 0;
+            onBreak = false;
+            
+            const breakSection = document.getElementById('breakSection');
+            if (maxBreaks > 0) {
+                breakSection.style.display = 'flex';
+                updateBreakButton();
+            } else {
+                breakSection.style.display = 'none';
+            }
+        }
+
+        function updateBreakButton() {
+            const btn = document.getElementById('breakBtn');
+            const countSpan = document.getElementById('breakCount');
+            const remaining = maxBreaks - breakCount;
+            
+            if (remaining > 0 && !onBreak) {
+                btn.disabled = false;
+                countSpan.textContent = `(${remaining} left)`;
+            } else {
+                btn.disabled = true;
+                countSpan.textContent = remaining > 0 ? '(on break)' : '(none left)';
+            }
+        }
+
+        function takeBreak() {
+            if (breakCount >= maxBreaks || onBreak || !sessionActive) return;
+            
+            breakCount++;
+            onBreak = true;
+            breakStartTime = Date.now();
+            
+            // Hide the button, show the active break UI
+            document.getElementById('breakBtn').style.display = 'none';
+            document.getElementById('breakActive').style.display = 'flex';
+            
+            // Animate the progress bar (fills from 100% to 0%)
+            const fill = document.getElementById('breakFill');
+            fill.style.width = '100%';
+            
+            // Update progress every second
+            const progressInterval = setInterval(() => {
+                if (!onBreak) {
+                    clearInterval(progressInterval);
+                    return;
+                }
+                const elapsed = Date.now() - breakStartTime;
+                const remaining = Math.max(0, BREAK_DURATION - elapsed);
+                const percent = (remaining / BREAK_DURATION) * 100;
+                fill.style.width = percent + '%';
+            }, 500);
+            
+            // End break after 5 minutes
+            breakTimeout = setTimeout(() => {
+                endBreak();
+            }, BREAK_DURATION);
+            
+            console.log(`☕ Break started! ${maxBreaks - breakCount} breaks remaining`);
+        }
+
+        function endBreak() {
+            if (!onBreak) return;
+            
+            onBreak = false;
+            clearTimeout(breakTimeout);
+            
+            // Show button again, hide active UI
+            document.getElementById('breakBtn').style.display = 'flex';
+            document.getElementById('breakActive').style.display = 'none';
+            updateBreakButton();
+            
+            console.log('☕ Break ended!');
+            
+            // Resume check-in scheduling if needed
+            if (sessionActive && checkinCount < checkinSchedule.length) {
+                scheduleNextCheckin();
+            }
+        }
+
         // Check-ins
         let checkinCount = 0;
         let targetCheckins = 3;
@@ -2195,6 +2351,12 @@
                 return;
             }
             
+            // Don't schedule during breaks - will resume when break ends
+            if (onBreak) {
+                console.log('☕ On break, check-in scheduling paused');
+                return;
+            }
+            
             if (checkinCount >= checkinSchedule.length) {
                 console.log('✅ All check-ins completed!');
                 return;
@@ -2211,6 +2373,11 @@
             clearTimeout(checkinInterval);
             
             checkinInterval = setTimeout(() => {
+                // Double-check we're not on break when firing
+                if (onBreak) {
+                    console.log('☕ Check-in blocked - on break');
+                    return;
+                }
                 console.log(`🔔 Triggering check-in ${checkinCount + 1}!`);
                 if (sessionActive && !checkinActive) {
                     checkinCount++;
@@ -2455,6 +2622,9 @@
             sessionActive = false;
             clearInterval(timerInterval);
             stopCheckins();
+            // Clean up break system
+            onBreak = false;
+            clearTimeout(breakTimeout);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
 
             const timeSpent = Math.floor((Date.now() - sessionStartTime) / 1000);
